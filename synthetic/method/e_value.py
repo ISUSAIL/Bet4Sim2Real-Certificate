@@ -2,6 +2,7 @@ import numpy as np
 
 
 DEFAULT_GRID = np.round(np.arange(0.02, 1.0, 0.02), 2)
+DEFAULT_CONSTANT_LAMBDAS = (0.25, 0.5, 0.75, 1.0)
 
 
 def truncate_stake(stake, candidate_mean, delta=0.05):
@@ -55,6 +56,26 @@ def log_wealth_grid(samples, grid=DEFAULT_GRID, means=None, variances=None, kapp
     return np.cumsum(np.log(factors), axis=1)
 
 
+def constant_log_wealth_grid(samples, grid=DEFAULT_GRID, lambdas=DEFAULT_CONSTANT_LAMBDAS):
+    """Log wealth from a fixed mixture over positive and negative constant stakes."""
+    samples = np.asarray(samples, dtype=float).ravel()
+    grid = np.asarray(grid, dtype=float).ravel()
+    lambdas = np.asarray(lambdas, dtype=float).ravel()
+
+    if np.any(lambdas <= 0):
+        raise ValueError("constant lambdas must be positive")
+
+    candidates = grid[:, None, None]
+    signed_lambdas = np.concatenate((-lambdas, lambdas))
+    stakes = truncate_stake(signed_lambdas[None, :, None], candidates)
+    factors = np.maximum(1.0 + stakes * (samples[None, None, :] - candidates), 1e-12)
+    log_wealths = np.cumsum(np.log(factors), axis=2)
+
+    max_log = np.max(log_wealths, axis=1)
+    mixture_log = max_log + np.log(np.mean(np.exp(log_wealths - max_log[:, None, :]), axis=1))
+    return mixture_log
+
+
 def confidence_sequence_from_log_wealth(grid, log_wealth, alpha=0.05):
     """Return grid-based anytime confidence intervals from e-process wealth."""
     grid = np.asarray(grid, dtype=float).ravel()
@@ -77,23 +98,53 @@ def confidence_sequence_from_log_wealth(grid, log_wealth, alpha=0.05):
     return lower, upper
 
 
-def bounds_from_samples(samples, grid=DEFAULT_GRID, confidence=0.95, kappa=0.5):
+def bounds_from_samples(
+    samples,
+    grid=DEFAULT_GRID,
+    confidence=0.95,
+    method="wsr",
+    kappa=0.5,
+    constant_lambdas=DEFAULT_CONSTANT_LAMBDAS,
+):
     """Raw WSR-style confidence sequence using only data-driven moments."""
     if not 0.0 < confidence < 1.0:
         raise ValueError("confidence must be in (0, 1)")
     alpha = 1.0 - confidence
     samples = np.asarray(samples, dtype=float).ravel()
-    means, variances = running_moments(samples)
-    log_wealth = log_wealth_grid(samples, grid, means, variances, kappa)
+
+    if method == "wsr":
+        means, variances = running_moments(samples)
+        log_wealth = log_wealth_grid(samples, grid, means, variances, kappa)
+    elif method == "constant":
+        log_wealth = constant_log_wealth_grid(samples, grid, constant_lambdas)
+    else:
+        raise ValueError(f"unknown e-value method: {method}")
+
     lower, upper = confidence_sequence_from_log_wealth(grid, log_wealth, alpha)
     return np.column_stack((lower, upper))
 
 
-def certificate(real_distribution, seed, n_samples, confidence=0.95, grid=DEFAULT_GRID, kappa=0.5):
-    """Return per-sample WSR e-process certificate bounds for a real distribution."""
+def certificate(
+    real_distribution,
+    seed,
+    n_samples,
+    confidence=0.95,
+    grid=DEFAULT_GRID,
+    method="wsr",
+    kappa=0.5,
+    constant_lambdas=DEFAULT_CONSTANT_LAMBDAS,
+):
+    """Return per-sample e-process certificate bounds for a real distribution."""
     np.random.seed(seed)
     samples = real_distribution.sample(n_samples)
-    return bounds_from_samples(samples, grid=grid, confidence=confidence, kappa=kappa)
+    return bounds_from_samples(
+        samples,
+        grid=grid,
+        confidence=confidence,
+        method=method,
+        kappa=kappa,
+        constant_lambdas=constant_lambdas,
+    )
 
 
 if __name__ == "__main__":
@@ -103,9 +154,10 @@ if __name__ == "__main__":
         from distributions import BetaSkewed
 
     distribution = BetaSkewed(alpha=0.5, beta=2.0)
-    certificates = certificate(distribution, seed=0, n_samples=100)
+    wsr = certificate(distribution, seed=0, n_samples=100, method="wsr")
+    constant = certificate(distribution, seed=0, n_samples=100, method="constant")
 
-    print("WSR e-process example")
+    print("E-process certificate example")
     print(f"true mean: {distribution.true_mean():.4f}")
-    print(f"certificates shape: {certificates.shape}")
-    print(f"final 95% CS: [{certificates[-1, 0]:.4f}, {certificates[-1, 1]:.4f}]")
+    print(f"WSR final 95% CS: [{wsr[-1, 0]:.4f}, {wsr[-1, 1]:.4f}]")
+    print(f"Constant final 95% CS: [{constant[-1, 0]:.4f}, {constant[-1, 1]:.4f}]")
