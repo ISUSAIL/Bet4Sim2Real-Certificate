@@ -4,10 +4,12 @@ try:
     from .e_value import DEFAULT_GRID
     from .e_value import confidence_sequence_from_log_wealth
     from .e_value import log_wealth_grid
+    from .e_value import refined_confidence_sequence_from_log_wealth
 except ImportError:
     from e_value import DEFAULT_GRID
     from e_value import confidence_sequence_from_log_wealth
     from e_value import log_wealth_grid
+    from e_value import refined_confidence_sequence_from_log_wealth
 
 
 def gaussian_log_likelihood(samples, means, variances, variance_floor=1e-8):
@@ -62,6 +64,8 @@ def bounds_from_samples(
     confidence=0.95,
     eta=5.0,
     kappa=1.0,
+    refine=True,
+    tol=1e-3,
 ):
     """Sim-to-real betting confidence sequence for a bounded mean in [0, 1]."""
     if not 0.0 < confidence < 1.0:
@@ -80,7 +84,23 @@ def bounds_from_samples(
         variances=variances,
         kappa=kappa,
     )
-    lower, upper = confidence_sequence_from_log_wealth(grid, log_wealth, alpha)
+    if refine:
+        log_wealth_fn = lambda candidates: log_wealth_grid(
+            samples=samples,
+            grid=candidates,
+            means=means,
+            variances=variances,
+            kappa=kappa,
+        )
+        lower, upper = refined_confidence_sequence_from_log_wealth(
+            grid,
+            log_wealth,
+            log_wealth_fn,
+            alpha=alpha,
+            tol=tol,
+        )
+    else:
+        lower, upper = confidence_sequence_from_log_wealth(grid, log_wealth, alpha)
     return np.column_stack((lower, upper))
 
 
@@ -93,6 +113,8 @@ def certificate(
     confidence=0.95,
     eta=5.0,
     kappa=1.0,
+    refine=True,
+    tol=1e-3,
 ):
     """Return per-sample sim-to-real certificate bounds for a real distribution."""
     np.random.seed(seed)
@@ -104,6 +126,8 @@ def certificate(
         confidence=confidence,
         eta=eta,
         kappa=kappa,
+        refine=refine,
+        tol=tol,
     )
 
 

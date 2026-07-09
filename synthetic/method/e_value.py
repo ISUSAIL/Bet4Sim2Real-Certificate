@@ -98,6 +98,59 @@ def confidence_sequence_from_log_wealth(grid, log_wealth, alpha=0.05):
     return lower, upper
 
 
+def refined_confidence_sequence_from_log_wealth(
+    grid,
+    log_wealth,
+    log_wealth_fn,
+    alpha=0.05,
+    tol=1e-3,
+    max_iter=12,
+):
+    """Refine grid-bracketed confidence bounds by bisection."""
+    grid = np.asarray(grid, dtype=float).ravel()
+    log_wealth = np.asarray(log_wealth, dtype=float)
+    threshold = np.log(1.0 / alpha)
+    lower, upper = confidence_sequence_from_log_wealth(grid, log_wealth, alpha)
+
+    def rejected(candidate, time_index):
+        return log_wealth_fn(np.array([candidate], dtype=float))[0, time_index] >= threshold
+
+    for t in range(log_wealth.shape[1]):
+        accepted = np.flatnonzero(log_wealth[:, t] < threshold)
+        if accepted.size == 0:
+            continue
+
+        first = accepted[0]
+        if first > 0:
+            a = grid[first - 1]
+            b = grid[first]
+            for _ in range(max_iter):
+                mid = 0.5 * (a + b)
+                if rejected(mid, t):
+                    a = mid
+                else:
+                    b = mid
+                if b - a <= tol:
+                    break
+            lower[t] = 0.5 * (a + b)
+
+        last = accepted[-1]
+        if last < grid.size - 1:
+            a = grid[last]
+            b = grid[last + 1]
+            for _ in range(max_iter):
+                mid = 0.5 * (a + b)
+                if rejected(mid, t):
+                    b = mid
+                else:
+                    a = mid
+                if b - a <= tol:
+                    break
+            upper[t] = 0.5 * (a + b)
+
+    return lower, upper
+
+
 def bounds_from_samples(
     samples,
     grid=DEFAULT_GRID,
@@ -105,6 +158,8 @@ def bounds_from_samples(
     method="wsr",
     kappa=0.5,
     constant_lambdas=DEFAULT_CONSTANT_LAMBDAS,
+    refine=True,
+    tol=1e-3,
 ):
     """Raw WSR-style confidence sequence using only data-driven moments."""
     if not 0.0 < confidence < 1.0:
@@ -115,12 +170,23 @@ def bounds_from_samples(
     if method == "wsr":
         means, variances = running_moments(samples)
         log_wealth = log_wealth_grid(samples, grid, means, variances, kappa)
+        log_wealth_fn = lambda candidates: log_wealth_grid(samples, candidates, means, variances, kappa)
     elif method == "constant":
         log_wealth = constant_log_wealth_grid(samples, grid, constant_lambdas)
+        log_wealth_fn = lambda candidates: constant_log_wealth_grid(samples, candidates, constant_lambdas)
     else:
         raise ValueError(f"unknown e-value method: {method}")
 
-    lower, upper = confidence_sequence_from_log_wealth(grid, log_wealth, alpha)
+    if refine:
+        lower, upper = refined_confidence_sequence_from_log_wealth(
+            grid,
+            log_wealth,
+            log_wealth_fn,
+            alpha=alpha,
+            tol=tol,
+        )
+    else:
+        lower, upper = confidence_sequence_from_log_wealth(grid, log_wealth, alpha)
     return np.column_stack((lower, upper))
 
 
@@ -133,6 +199,8 @@ def certificate(
     method="wsr",
     kappa=0.5,
     constant_lambdas=DEFAULT_CONSTANT_LAMBDAS,
+    refine=True,
+    tol=1e-3,
 ):
     """Return per-sample e-process certificate bounds for a real distribution."""
     np.random.seed(seed)
@@ -144,6 +212,8 @@ def certificate(
         method=method,
         kappa=kappa,
         constant_lambdas=constant_lambdas,
+        refine=refine,
+        tol=tol,
     )
 
 
