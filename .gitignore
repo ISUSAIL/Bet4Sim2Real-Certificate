@@ -1,4 +1,61 @@
-synthetic_examples/bound_width.npz
-synthetic_examples/cross_product.npz
-synthetic_examples/__pycache__
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Python packaging and tooling
+pip-wheel-metadata/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.dmypy.json
+dmypy.json
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.env
+.env.*
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Editors and OS files
+.DS_Store
+.vscode/
+.idea/
+
+# Local agent state
 .claude
+.codex/
+AGENTS.local.md
