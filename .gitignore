@@ -1,3 +1,5 @@
+#Raw data
+nist_continuous_manipulation/data/raw
 # Python
 __pycache__/
 *.py[cod]
