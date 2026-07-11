@@ -261,7 +261,7 @@ def main():
         help="Path to the 'OTS/CSV/Custom Axis Convention' directory holding the take CSVs "
         "(default: derived from log_path's Replicate folder)",
     )
-    default_run_order = Path(__file__).parent / "data" / "Continuous_Mobile_Manipulator_Experiment_Run_Order_06-07-2022.xlsx"
+    default_run_order = Path(__file__).parent / "Continuous_Mobile_Manipulator_Experiment_Run_Order_06-07-2022.xlsx"
     parser.add_argument(
         "--run-order",
         type=Path,
@@ -274,14 +274,14 @@ def main():
         default=None,
         help="Replicate number (default: parsed from the 'Replicate N' folder in log_path)",
     )
-    default_gt = Path(__file__).parent / "data" / "rmma_fiducials_gt.csv"
+    default_gt = Path(__file__).parent / "rmma_fiducials_gt.csv"
     parser.add_argument(
         "--fiducials-gt",
         type=Path,
         default=default_gt,
         help=f"Ground-truth marker positions CSV (default: {default_gt})",
     )
-    default_output = Path(__file__).parent / "data" / "events.csv"
+    default_output = Path(__file__).parent / "events.csv"
     parser.add_argument(
         "-o", "--output", type=Path, default=default_output,
         help=f"CSV output path (default: {default_output})",
