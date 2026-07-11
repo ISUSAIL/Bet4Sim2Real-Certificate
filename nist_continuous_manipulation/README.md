@@ -1,12 +1,8 @@
 # The certificate for NIST Continuous Manipulation Task
 
-This module computes the **end-effector positioning error** for the NIST
-Continuous Mobile Manipulator experiment. For every "Searching for
-targetMarker" event in a run, it resolves where the arm's end-effector
-(EOAT rigid body, tracked by the OTS motion-capture system) was at that
-instant and compares it to the ground-truth fiducial marker position. The
-per-marker L2 distance is then averaged over each run's 6 markers and written
-into the factorial results table as a new `distance` column.
+Measurement: Interception Rate,Search Time, distance
+distance: the average of per-marker L2 distance in each run
+(arm's end-effector(EOAT rigid body, tracked by the OTS motion-capture system) and the ground-truth fiducial marker position)
 
 ## Dataset
 
@@ -63,16 +59,6 @@ and adds/updates the `distance` column (average error in mm, one value per
 run) in the factorial CSV. It prints a per-run summary and warns if a run's
 `Side` in the factorial CSV disagrees with the run-order workbook.
 
-Process a **single replicate** (also useful for inspecting individual events):
-
-```bash
-python3 data/parse_log_events.py "data/raw/Replicate 1/Program Output/run_tests_nist_output_06_07_2022_09_48_56.txt"
-```
-
-By default this writes `events.csv` into that replicate's folder. The OTS
-directory, run-order workbook, ground-truth CSV, and output path can all be
-overridden with flags (`--ots-dir`, `--run-order`, `--fiducials-gt`,
-`-o/--output`); run with `-h` for details.
 
 ## How it works
 
@@ -90,27 +76,7 @@ overridden with flags (`--ots-dir`, `--run-order`, `--fiducials-gt`,
 5. **Distance error** — `distance_error_mm = hypot(eoat - marker_gt)`, then
    averaged over a run's 6 markers for the factorial `distance` column.
 
-## Outputs
 
-**`data/raw/Replicate N/events.csv`** — one row per marker-search event:
-
-| column | meaning |
-| --- | --- |
-| `line_no` | line in the run log where the event appeared |
-| `event` | event type (`searching_for_marker`) |
-| `ros_time` | ROS timestamp of the event |
-| `marker_id` | targetMarker index (0–5) |
-| `run_name` | OTS take the event falls in |
-| `side` | robot side for this run (1 or 2) |
-| `marker_name` | resolved physical marker (`Marker2`–`Marker13`) |
-| `frame_number` | frame in the take at the event time |
-| `csv_line` | line in the take CSV read for the EOAT position |
-| `eoat_x_mm`, `eoat_y_mm` | end-effector position from the mocap take |
-| `marker_gt_x_mm`, `marker_gt_y_mm` | ground-truth marker position |
-| `distance_error_mm` | L2 distance between EOAT and ground truth |
-
-**Factorial CSV** — the `distance` column holds the per-run mean of
-`distance_error_mm` (mm), aligned by `(Replicate, Run)`.
 
 ## Notes
 
