@@ -18,6 +18,7 @@ from parse_log_events import (
     load_takes,
     parse_events,
     parse_run_order,
+    write_events_csv,
 )
 
 DATA_DIR = Path(__file__).parent
@@ -37,13 +38,17 @@ def find_replicate_paths(replicate: int):
 
 
 def run_distances_for_replicate(replicate, run_side_map, marker_gt):
-    """Return {run_number: average_distance_error_mm} for one replicate."""
+    """Return {run_number: average_distance_error_mm} for one replicate, and
+    write that replicate's per-event CSV under its own folder."""
     log_path, ots_dir = find_replicate_paths(replicate)
     takes = load_takes(ots_dir)
     name_to_run = {t["name"]: t["run_number"] for t in takes}
 
     events = parse_events(log_path)
     annotate_with_take(events, takes, run_side_map=run_side_map, marker_gt=marker_gt)
+
+    replicate_dir = log_path.parent.parent
+    write_events_csv(events, replicate_dir / "events.csv")
 
     dists = defaultdict(list)
     for e in events:
@@ -56,9 +61,9 @@ def run_distances_for_replicate(replicate, run_side_map, marker_gt):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    default_run_order = DATA_DIR / "Continuous_Mobile_Manipulator_Experiment_Run_Order_06-07-2022.xlsx"
+    default_run_order = RAW_DIR / "Continuous_Mobile_Manipulator_Experiment_Run_Order_06-07-2022.xlsx"
     parser.add_argument("--run-order", type=Path, default=default_run_order)
-    parser.add_argument("--fiducials-gt", type=Path, default=DATA_DIR / "rmma_fiducials_gt.csv")
+    parser.add_argument("--fiducials-gt", type=Path, default=RAW_DIR / "rmma_fiducials_gt.csv")
     default_factorial = DATA_DIR / "Continuous_Mobile_Manipulator_Experiment_Factorial_06-07-2022_By_Run_Order.csv"
     parser.add_argument("--factorial", type=Path, default=default_factorial,
                         help="By-Run-Order factorial CSV to fill in place")

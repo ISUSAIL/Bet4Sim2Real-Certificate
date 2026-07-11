@@ -251,6 +251,34 @@ def annotate_with_take(events, takes, run_side_map=None, marker_gt=None, body_na
     return events
 
 
+EVENT_FIELDNAMES = [
+    "line_no",
+    "event",
+    "ros_time",
+    "marker_id",
+    "run_name",
+    "side",
+    "marker_name",
+    "frame_number",
+    "csv_line",
+    "eoat_x_mm",
+    "eoat_y_mm",
+    "marker_gt_x_mm",
+    "marker_gt_y_mm",
+    "distance_error_mm",
+]
+
+
+def write_events_csv(events, output_path: Path):
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=EVENT_FIELDNAMES)
+        writer.writeheader()
+        writer.writerows(events)
+    return output_path
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("log_path", type=Path, help="Path to run_tests_nist_output_*.txt")
@@ -261,7 +289,7 @@ def main():
         help="Path to the 'OTS/CSV/Custom Axis Convention' directory holding the take CSVs "
         "(default: derived from log_path's Replicate folder)",
     )
-    default_run_order = Path(__file__).parent / "Continuous_Mobile_Manipulator_Experiment_Run_Order_06-07-2022.xlsx"
+    default_run_order = Path(__file__).parent / "raw" / "Continuous_Mobile_Manipulator_Experiment_Run_Order_06-07-2022.xlsx"
     parser.add_argument(
         "--run-order",
         type=Path,
@@ -274,23 +302,25 @@ def main():
         default=None,
         help="Replicate number (default: parsed from the 'Replicate N' folder in log_path)",
     )
-    default_gt = Path(__file__).parent / "rmma_fiducials_gt.csv"
+    default_gt = Path(__file__).parent / "raw" / "rmma_fiducials_gt.csv"
     parser.add_argument(
         "--fiducials-gt",
         type=Path,
         default=default_gt,
         help=f"Ground-truth marker positions CSV (default: {default_gt})",
     )
-    default_output = Path(__file__).parent / "events.csv"
     parser.add_argument(
-        "-o", "--output", type=Path, default=default_output,
-        help=f"CSV output path (default: {default_output})",
+        "-o", "--output", type=Path, default=None,
+        help="CSV output path (default: 'events.csv' in the replicate's folder)",
     )
     args = parser.parse_args()
 
+    # The log lives at 'Replicate N/Program Output/run_tests_nist_output_*.txt',
+    # so its grandparent is the replicate folder.
+    replicate_dir = args.log_path.parent.parent
+
     ots_dir = args.ots_dir
     if ots_dir is None:
-        replicate_dir = args.log_path.parent.parent
         ots_dir = replicate_dir / "OTS" / "CSV" / "Custom Axis Convention"
 
     replicate = args.replicate
@@ -321,28 +351,9 @@ def main():
             f"distance_error_mm={e['distance_error_mm']}"
         )
 
-    if args.output:
-        fieldnames = [
-            "line_no",
-            "event",
-            "ros_time",
-            "marker_id",
-            "run_name",
-            "side",
-            "marker_name",
-            "frame_number",
-            "csv_line",
-            "eoat_x_mm",
-            "eoat_y_mm",
-            "marker_gt_x_mm",
-            "marker_gt_y_mm",
-            "distance_error_mm",
-        ]
-        with args.output.open("w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(events)
-        print(f"\nWrote {len(events)} events to {args.output}")
+    output = args.output if args.output is not None else replicate_dir / "events.csv"
+    write_events_csv(events, output)
+    print(f"\nWrote {len(events)} events to {output}")
 
 
 if __name__ == "__main__":
