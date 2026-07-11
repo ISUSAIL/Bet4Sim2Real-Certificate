@@ -5,6 +5,7 @@ take, frame number, and CSV line it falls in.
 import argparse
 import csv
 import linecache
+import math
 import re
 import zipfile
 from pathlib import Path
@@ -197,7 +198,9 @@ def load_marker_gt(gt_path: Path):
 
     return {
         marker: (
-            sum(d["X"]) / len(d["X"]) if d["X"] else None,
+            # The fiducials-GT export uses the opposite X-axis sign convention from the
+            # OTS take's "Custom Axis Convention"; negate X to bring GT into the EOAT frame.
+            -(sum(d["X"]) / len(d["X"])) if d["X"] else None,
             sum(d["Y"]) / len(d["Y"]) if d["Y"] else None,
         )
         for marker, d in acc.items()
@@ -214,7 +217,7 @@ def annotate_with_take(events, takes, run_side_map=None, marker_gt=None, body_na
             e.update(
                 run_name=None, frame_number=None, csv_line=None,
                 eoat_x_mm=None, eoat_y_mm=None, side=None, marker_name=None,
-                marker_gt_x_mm=None, marker_gt_y_mm=None,
+                marker_gt_x_mm=None, marker_gt_y_mm=None, distance_error_mm=None,
             )
             continue
         offset_sec = e["ros_time"] - take["start_epoch"]
@@ -229,6 +232,10 @@ def annotate_with_take(events, takes, run_side_map=None, marker_gt=None, body_na
         side = run_side_map.get(take["run_number"])
         marker_name = marker_name_for(side, e["marker_id"])
         marker_gt_x_mm, marker_gt_y_mm = marker_gt.get(marker_name, (None, None))
+        if None not in (marker_gt_x_mm, marker_gt_y_mm):
+            distance_error_mm = math.hypot(eoat_x_mm - marker_gt_x_mm, eoat_y_mm - marker_gt_y_mm)
+        else:
+            distance_error_mm = None
         e.update(
             run_name=take["name"],
             frame_number=frame_number,
@@ -239,6 +246,7 @@ def annotate_with_take(events, takes, run_side_map=None, marker_gt=None, body_na
             marker_name=marker_name,
             marker_gt_x_mm=marker_gt_x_mm,
             marker_gt_y_mm=marker_gt_y_mm,
+            distance_error_mm=distance_error_mm,
         )
     return events
 
@@ -309,7 +317,8 @@ def main():
             f"run={e['run_name']}  side={e['side']}  marker={e['marker_name']}  "
             f"frame={e['frame_number']}  csv_line={e['csv_line']}  "
             f"eoat_x_mm={e['eoat_x_mm']}  eoat_y_mm={e['eoat_y_mm']}  "
-            f"marker_gt_x_mm={e['marker_gt_x_mm']}  marker_gt_y_mm={e['marker_gt_y_mm']}"
+            f"marker_gt_x_mm={e['marker_gt_x_mm']}  marker_gt_y_mm={e['marker_gt_y_mm']}  "
+            f"distance_error_mm={e['distance_error_mm']}"
         )
 
     if args.output:
@@ -327,6 +336,7 @@ def main():
             "eoat_y_mm",
             "marker_gt_x_mm",
             "marker_gt_y_mm",
+            "distance_error_mm",
         ]
         with args.output.open("w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
