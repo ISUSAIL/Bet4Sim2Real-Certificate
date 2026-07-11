@@ -12,3 +12,5 @@ Under ~Nist/mds2-3187/Continuous Mobile Manipulator Experiment 06-07-2022/Analys
 to Bet4Sim2Real-Certificate/nist_continuous_manipulation/data
 
 Nist/mds2-3187/Continuous Mobile Manipulator Experiment 06-07-2022/Pre-Test_Data/Cart_Transporter_Map_to_OTS_Registration_5-12-2022/OTS_RMMA_GT 05-12-2022/rmma_fiducials_gt.csv
+
+Nist/mds2-3187/Continuous Mobile Manipulator Experiment 06-07-2022/Data/Continuous_Mobile_Manipulator_Experiment_Run_Order_06-07-2022.xlsx
