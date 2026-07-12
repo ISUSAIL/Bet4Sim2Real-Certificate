@@ -15,6 +15,7 @@ from method import e_value  # noqa: E402
 from method import p_value  # noqa: E402
 from method import sim2real  # noqa: E402
 from method import vincent  # noqa: E402
+from method.distributions import BetaSkewed  # noqa: E402
 
 import importlib.util  # noqa: E402
 
@@ -28,6 +29,10 @@ NORMALIZATION_BOUNDS = {
 }
 VINCENT_GAPS = (0.05, 0.10, 0.20)
 HORIZONS = (5, 10, 20, 30)
+VINCENT_SIMULATORS = {
+    "pos_error_l2": BetaSkewed(2.0, 10.0),
+    "orientation_error_geodesic": BetaSkewed(2.0, 4.0),
+}
 
 
 def load_synthetic_demo():
@@ -52,29 +57,6 @@ class ArrayDistribution:
 
     def true_variance(self):
         return float(np.var(self.samples))
-
-    @property
-    def name(self):
-        return self._name
-
-
-class MixtureDistribution:
-    def __init__(self, components, name="simulator_mixture"):
-        self.components = list(components)
-        self._name = name
-
-    def sample(self, n=1):
-        choices = np.random.randint(0, len(self.components), size=n)
-        return np.array([self.components[index].sample(1)[0] for index in choices], dtype=float)
-
-    def true_mean(self):
-        return float(np.mean([component.true_mean() for component in self.components]))
-
-    def true_variance(self):
-        means = np.array([component.true_mean() for component in self.components], dtype=float)
-        variances = np.array([component.true_variance() for component in self.components], dtype=float)
-        mixture_mean = float(np.mean(means))
-        return float(np.mean(variances + means**2) - mixture_mean**2)
 
     @property
     def name(self):
@@ -170,19 +152,18 @@ def run_methods_for_measure(measure, info, banks, eta_by_bank):
         rows.extend(certificate_rows(measure, samples, method, bank, cert, info["scale"]))
 
     real_distribution = ArrayDistribution(samples, name=measure)
-    for bank_name in ("Sim_756", "Sim_10080"):
-        sim_distribution = MixtureDistribution(banks[bank_name], name=bank_name)
-        for gap in VINCENT_GAPS:
-            cert = vincent.certificate(
-                real_distribution,
-                sim_distribution,
-                seed=0,
-                n_samples=n_samples,
-                confidence=CONFIDENCE,
-                sim2real_gap_upper=gap,
-                sim2real_gap_lower=gap,
-            )
-            rows.extend(certificate_rows(measure, samples, "vincent", f"{bank_name}_gap_{gap:g}", cert, info["scale"]))
+    sim_distribution = VINCENT_SIMULATORS[measure]
+    for gap in VINCENT_GAPS:
+        cert = vincent.certificate(
+            real_distribution,
+            sim_distribution,
+            seed=0,
+            n_samples=n_samples,
+            confidence=CONFIDENCE,
+            sim2real_gap_upper=gap,
+            sim2real_gap_lower=gap,
+        )
+        rows.extend(certificate_rows(measure, samples, "vincent", f"gap_{gap:g}", cert, info["scale"]))
 
     return rows
 

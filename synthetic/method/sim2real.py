@@ -2,17 +2,21 @@ import numpy as np
 
 try:
     from .e_value import DEFAULT_GRID
-    from .e_value import confidence_sequence_from_log_wealth
-    from .e_value import log_wealth_grid
-    from .e_value import refined_confidence_sequence_from_log_wealth
 except ImportError:
     from e_value import DEFAULT_GRID
-    from e_value import confidence_sequence_from_log_wealth
-    from e_value import log_wealth_grid
-    from e_value import refined_confidence_sequence_from_log_wealth
 
 
 _SIMULATOR_MOMENT_CACHE = {}
+DELTA = 0.05
+
+
+def truncate(stake, candidate_mean):
+    """Algorithm line 6: keep every factor positive for outcomes in [0, 1]."""
+    return np.clip(
+        stake,
+        -(1.0 - DELTA) / np.maximum(1.0 - candidate_mean, 1e-6),
+        (1.0 - DELTA) / np.maximum(candidate_mean, 1e-6),
+    )
 
 
 def gaussian_log_likelihood(samples, means, variances, variance_floor=1e-8):
@@ -64,6 +68,104 @@ def simulator_bank_mixture_moments(samples, simulators, eta=5.0):
     return mixture_means, mixture_variances
 
 
+def grid_wealth(samples, grid, means, variances, kappa):
+    """Algorithm lines 5-6: log wealth for every grid candidate."""
+    samples = np.asarray(samples, dtype=float).ravel()
+    grid = np.asarray(grid, dtype=float).ravel()
+    means = np.asarray(means, dtype=float).ravel()
+    variances = np.asarray(variances, dtype=float).ravel()
+
+    candidates = grid[:, None]
+    edge = means[None, :] - candidates
+    stakes = truncate(kappa * edge / (variances[None, :] + edge**2), candidates)
+    factors = np.maximum(1.0 + stakes * (samples[None, :] - candidates), 1e-12)
+    return np.cumsum(np.log(factors), axis=1)
+
+
+def _wealth_diag(candidates, samples, means, variances, kappa):
+    """Log wealth of candidate c[n] evaluated at time n, vectorized."""
+    samples = np.asarray(samples, dtype=float).ravel()
+    candidates = np.asarray(candidates, dtype=float).ravel()
+    times = samples.size
+    grid = candidates[:, None]
+    edge = means[None, :] - grid
+    stakes = truncate(kappa * edge / (variances[None, :] + edge**2), grid)
+    log_factors = np.log(np.maximum(1.0 + stakes * (samples[None, :] - grid), 1e-12))
+    mask = np.tril(np.ones((times, times), dtype=bool))
+    return np.where(mask, log_factors, 0.0).sum(axis=1)
+
+
+def confidence_sequence(grid, log_wealth, samples, means, variances, kappa, alpha=0.05, tol=1e-3, max_iter=10):
+    """Algorithm line 10: bisection-refined confidence interval endpoints."""
+    threshold = np.log(1.0 / alpha)
+    grid = np.asarray(grid, dtype=float).ravel()
+    log_wealth = np.asarray(log_wealth, dtype=float)
+    grid_size, times = log_wealth.shape
+
+    lower = np.full(times, np.nan, dtype=float)
+    upper = np.full(times, np.nan, dtype=float)
+
+    lower_a = np.zeros(times, dtype=float)
+    lower_b = np.zeros(times, dtype=float)
+    refine_lower = np.zeros(times, dtype=bool)
+    upper_a = np.zeros(times, dtype=float)
+    upper_b = np.zeros(times, dtype=float)
+    refine_upper = np.zeros(times, dtype=bool)
+
+    for time_index in range(times):
+        column = log_wealth[:, time_index]
+        accepted = np.flatnonzero(column < threshold)
+        if accepted.size == 0:
+            continue
+
+        first = accepted[0]
+        last = accepted[-1]
+        if first == 0:
+            lower[time_index] = grid[0]
+        else:
+            lower_a[time_index] = grid[first - 1]
+            lower_b[time_index] = grid[first]
+            refine_lower[time_index] = True
+
+        if last == grid_size - 1:
+            upper[time_index] = grid[-1]
+        else:
+            upper_a[time_index] = grid[last]
+            upper_b[time_index] = grid[last + 1]
+            refine_upper[time_index] = True
+
+    refine = refine_lower | refine_upper
+    if refine.any():
+        lower_current = np.where(refine_lower, 0.5 * (lower_a + lower_b), lower)
+        upper_current = np.where(refine_upper, 0.5 * (upper_a + upper_b), upper)
+
+        for _ in range(max_iter):
+            previous_width = upper_current - lower_current
+
+            if refine_lower.any():
+                candidates = np.where(refine_lower, 0.5 * (lower_a + lower_b), grid[0])
+                rejected = refine_lower & (_wealth_diag(candidates, samples, means, variances, kappa) >= threshold)
+                lower_a = np.where(rejected, candidates, lower_a)
+                lower_b = np.where(refine_lower & ~rejected, candidates, lower_b)
+
+            if refine_upper.any():
+                candidates = np.where(refine_upper, 0.5 * (upper_a + upper_b), grid[0])
+                rejected = refine_upper & (_wealth_diag(candidates, samples, means, variances, kappa) >= threshold)
+                upper_b = np.where(rejected, candidates, upper_b)
+                upper_a = np.where(refine_upper & ~rejected, candidates, upper_a)
+
+            lower_current = np.where(refine_lower, 0.5 * (lower_a + lower_b), lower)
+            upper_current = np.where(refine_upper, 0.5 * (upper_a + upper_b), upper)
+            change = np.nanmax(np.where(refine, np.abs((upper_current - lower_current) - previous_width), np.nan))
+            if change < tol:
+                break
+
+        lower = lower_current
+        upper = upper_current
+
+    return lower, upper
+
+
 def bounds_from_samples(
     samples,
     simulators,
@@ -84,7 +186,7 @@ def bounds_from_samples(
         simulators=simulators,
         eta=eta,
     )
-    log_wealth = log_wealth_grid(
+    log_wealth = grid_wealth(
         samples=samples,
         grid=grid,
         means=means,
@@ -92,22 +194,28 @@ def bounds_from_samples(
         kappa=kappa,
     )
     if refine:
-        log_wealth_fn = lambda candidates: log_wealth_grid(
+        lower, upper = confidence_sequence(
+            grid,
+            log_wealth,
             samples=samples,
-            grid=candidates,
             means=means,
             variances=variances,
             kappa=kappa,
-        )
-        lower, upper = refined_confidence_sequence_from_log_wealth(
-            grid,
-            log_wealth,
-            log_wealth_fn,
             alpha=alpha,
             tol=tol,
         )
     else:
-        lower, upper = confidence_sequence_from_log_wealth(grid, log_wealth, alpha)
+        lower, upper = confidence_sequence(
+            grid,
+            log_wealth,
+            samples=samples,
+            means=means,
+            variances=variances,
+            kappa=kappa,
+            alpha=alpha,
+            tol=0.0,
+            max_iter=0,
+        )
     return np.column_stack((lower, upper))
 
 

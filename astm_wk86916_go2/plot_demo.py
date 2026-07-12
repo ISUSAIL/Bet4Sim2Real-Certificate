@@ -4,6 +4,9 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.ticker import FixedLocator
+from matplotlib.ticker import FuncFormatter
+from matplotlib.ticker import NullFormatter
 
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
@@ -30,6 +33,30 @@ SIM2REAL_COLORS = {
 }
 
 
+MEASURE_LABELS = {
+    "pos_error_l2": ("Position error", "certificate width (mm)"),
+    "orientation_error_geodesic": ("Orientation error", "certificate width (rad)"),
+}
+
+
+PLOT_SCALE = {
+    "pos_error_l2": 1000.0,
+    "orientation_error_geodesic": 1.0,
+}
+
+
+Y_TICKS = {
+    "pos_error_l2": [5, 10, 20, 50, 100],
+    "orientation_error_geodesic": [0.03, 0.05, 0.10, 0.20],
+}
+
+
+def plain_tick(value, _):
+    if value >= 1.0:
+        return f"{value:g}"
+    return f"{value:.2f}".rstrip("0").rstrip(".")
+
+
 def read_csv(path):
     with open(path, newline="") as f:
         return list(csv.DictReader(f))
@@ -54,7 +81,7 @@ def method_order(rows):
     ])
     vincent = sorted(
         {r["bank"] for r in rows if r["method"] == "vincent"},
-        key=lambda name: (int(name.split("_")[1]), float(name.split("_")[-1])),
+        key=lambda name: float(name.split("_")[-1]),
     )
     order.extend([("vincent", bank) for bank in vincent])
     return order
@@ -80,8 +107,7 @@ def label(method, bank):
     if method == "sequential_t_test":
         return "sequential t-test"
     if method == "vincent":
-        parts = bank.split("_")
-        return f"Vincent et al. ({parts[0]}_{parts[1]}, gap {parts[-1]})"
+        return f"Vincent et al. (gap {bank.split('_')[-1]})"
     return method
 
 
@@ -124,12 +150,13 @@ def plot_width_curves():
     rows = read_csv(DATA_DIR / "certificate_widths.csv")
     order = method_order(rows)
     measures = list(dict.fromkeys(row["measure"] for row in rows))
-    fig, axes = plt.subplots(1, len(measures), figsize=(7.2 * len(measures), 5.0), sharey=True)
+    fig, axes = plt.subplots(1, len(measures), figsize=(7.2 * len(measures), 5.0), sharey=False)
     if len(measures) == 1:
         axes = [axes]
 
     legend_entries = {}
     for ax, measure in zip(axes, measures):
+        plotted_widths = []
         for method, bank in order:
             series = [
                 row for row in rows
@@ -138,19 +165,29 @@ def plot_width_curves():
             if not series:
                 continue
             x = np.array([int(row["n"]) for row in series])
-            y = np.array([float(row["width_norm"]) for row in series])
+            y = np.array([float(row["width_original"]) for row in series]) * PLOT_SCALE.get(measure, 1.0)
+            plotted_widths.extend(y[np.isfinite(y) & (y > 0)])
             idx = np.argsort(x)
             line, = ax.plot(x[idx], y[idx], marker="o", markersize=3.5, label=label(method, bank), **style_for(method, bank))
             legend_entries.setdefault((method, bank), (line, label(method, bank)))
-        ax.set_title(measure)
+        title, y_label = MEASURE_LABELS.get(measure, (measure, "certificate width"))
+        ax.set_title(title)
         ax.set_xlabel("samples")
+        ax.set_ylabel(y_label, labelpad=10)
         ax.set_yscale("log")
+        if plotted_widths:
+            ymin = min(plotted_widths)
+            ymax = max(plotted_widths)
+            ax.set_ylim(ymin / 1.25, ymax * 1.18)
+        if measure in Y_TICKS:
+            ax.yaxis.set_major_locator(FixedLocator(Y_TICKS[measure]))
+            ax.yaxis.set_major_formatter(FuncFormatter(plain_tick))
+            ax.yaxis.set_minor_formatter(NullFormatter())
         ax.grid(alpha=0.25)
-    axes[0].set_ylabel("certificate width after normalization")
 
     handles, labels = zip(*[legend_entries[key] for key in order if key in legend_entries])
     fig.legend(handles, labels, loc="lower center", ncol=4, frameon=False, bbox_to_anchor=(0.5, -0.08))
-    fig.subplots_adjust(left=0.075, right=0.99, bottom=0.28, top=0.88, wspace=0.10)
+    fig.subplots_adjust(left=0.075, right=0.99, bottom=0.28, top=0.88, wspace=0.24)
     save = DATA_DIR / "width_curves.png"
     fig.savefig(save, dpi=180)
     print(f"saved {save}")

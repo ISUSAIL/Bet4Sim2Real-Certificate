@@ -367,6 +367,18 @@ def run_main_task(task):
         )
         rows.append(collect_result(real_set, dist_name, "sim2real", bank_name, cert, true_mean))
 
+    ideal_cert = sim2real.certificate(
+        dist,
+        seed,
+        N_SAMPLES,
+        [dist],
+        confidence=CONFIDENCE,
+        eta=1.0,
+        refine=True,
+        kappa=1.0,
+    )
+    rows.append(collect_result(real_set, dist_name, "sim2real", "Ideal", ideal_cert, true_mean))
+
     vincent_sim = vincent_shifted_simulator(dist)
     for gap in VINCENT_GAPS:
         cert = vincent.certificate(
@@ -379,6 +391,17 @@ def run_main_task(task):
             sim2real_gap_lower=gap,
         )
         rows.append(collect_result(real_set, dist_name, "vincent", f"gap_{gap:g}", cert, true_mean))
+
+    ideal_vincent = vincent.certificate(
+        dist,
+        dist,
+        seed,
+        N_SAMPLES,
+        confidence=CONFIDENCE,
+        sim2real_gap_upper=0.0,
+        sim2real_gap_lower=0.0,
+    )
+    rows.append(collect_result(real_set, dist_name, "vincent", "Ideal", ideal_vincent, true_mean))
 
     for method_name, run_method in baseline_methods():
         cert = run_method(dist, seed)

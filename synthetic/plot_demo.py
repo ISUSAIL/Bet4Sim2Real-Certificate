@@ -68,9 +68,13 @@ def read_csv(path):
 
 def label(method, bank):
     if method == "sim2real":
+        if bank == "Ideal":
+            return "Proposed (ideal Kelly)"
         return f"Proposed ({bank})"
     if method == "vincent":
-        return f"Vincent et al. ({bank.replace('_', ' ')})"
+        if bank == "Ideal":
+            return "Vincent et al. (ideal)"
+        return f"Vincent et al. (gap {bank.split('_')[-1]})"
     if method == "e_value_wsr":
         return "e-value (WSR)"
     if method == "e_value_constant_0.25":
@@ -88,10 +92,12 @@ def label(method, bank):
 
 def method_order(rows):
     sim_banks = sorted(
-        {r["bank"] for r in rows if r["method"] == "sim2real"},
+        {r["bank"] for r in rows if r["method"] == "sim2real" and r["bank"] != "Ideal"},
         key=lambda x: (x.endswith("_biased"), int(x.split("_")[1])),
     )
     order = [("sim2real", bank) for bank in sim_banks]
+    if any(r["method"] == "sim2real" and r["bank"] == "Ideal" for r in rows):
+        order.append(("sim2real", "Ideal"))
     order.extend([
         ("e_value_wsr", "none"),
         ("e_value_constant_0.25", "none"),
@@ -104,7 +110,7 @@ def method_order(rows):
     ])
     vincent_banks = sorted(
         {r["bank"] for r in rows if r["method"] == "vincent"},
-        key=lambda x: float(x.split("_")[1]),
+        key=lambda x: (x == "Ideal", float("inf") if x == "Ideal" else float(x.split("_")[-1])),
     )
     order.extend([("vincent", bank) for bank in vincent_banks])
     return order
@@ -116,6 +122,13 @@ def real_set_order(rows):
 
 def style_for(method, bank, highlighted_bank):
     if method == "sim2real":
+        if bank == "Ideal":
+            return {
+                "color": "#000000",
+                "linewidth": 2.5,
+                "alpha": 0.80,
+                "linestyle": "-",
+            }
         style = {
             "color": SIM2REAL_COLORS.get(bank, "#1f77b4"),
             "linewidth": 2.0,
@@ -147,7 +160,14 @@ def style_for(method, bank, highlighted_bank):
         }
         return {"color": "#444444", "linewidth": 1.7, "alpha": 0.75, "linestyle": styles[method]}
     if method == "vincent":
-        gap = float(bank.split("_")[1])
+        if bank == "Ideal":
+            return {
+                "color": "#4a004a",
+                "linewidth": 2.3,
+                "alpha": 0.86,
+                "linestyle": ":",
+            }
+        gap = float(bank.split("_")[-1])
         colors = {
             0.05: "#7a0177",
             0.10: "#ae017e",
