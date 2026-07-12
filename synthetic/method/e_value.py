@@ -92,8 +92,8 @@ def confidence_sequence_from_log_wealth(grid, log_wealth, alpha=0.05):
         accepted = np.flatnonzero(log_wealth[:, t] < threshold)
         if accepted.size == 0:
             continue
-        lower[t] = grid[accepted[0]]
-        upper[t] = grid[accepted[-1]]
+        lower[t] = grid[max(accepted[0] - 1, 0)]
+        upper[t] = grid[min(accepted[-1] + 1, grid.size - 1)]
 
     return lower, upper
 
@@ -106,47 +106,74 @@ def refined_confidence_sequence_from_log_wealth(
     tol=1e-3,
     max_iter=12,
 ):
-    """Refine grid-bracketed confidence bounds by bisection."""
+    """Refine grid-bracketed confidence bounds by batched bisection."""
     grid = np.asarray(grid, dtype=float).ravel()
     log_wealth = np.asarray(log_wealth, dtype=float)
     threshold = np.log(1.0 / alpha)
     lower, upper = confidence_sequence_from_log_wealth(grid, log_wealth, alpha)
 
-    def rejected(candidate, time_index):
-        return log_wealth_fn(np.array([candidate], dtype=float))[0, time_index] >= threshold
+    accepted_by_time = [
+        np.flatnonzero(log_wealth[:, time_index] < threshold)
+        for time_index in range(log_wealth.shape[1])
+    ]
 
-    for t in range(log_wealth.shape[1]):
-        accepted = np.flatnonzero(log_wealth[:, t] < threshold)
+    lower_times = []
+    lower_a = []
+    lower_b = []
+    upper_times = []
+    upper_a = []
+    upper_b = []
+
+    for time_index, accepted in enumerate(accepted_by_time):
         if accepted.size == 0:
             continue
 
         first = accepted[0]
         if first > 0:
-            a = grid[first - 1]
-            b = grid[first]
-            for _ in range(max_iter):
-                mid = 0.5 * (a + b)
-                if rejected(mid, t):
-                    a = mid
-                else:
-                    b = mid
-                if b - a <= tol:
-                    break
-            lower[t] = 0.5 * (a + b)
+            lower_times.append(time_index)
+            lower_a.append(grid[first - 1])
+            lower_b.append(grid[first])
 
         last = accepted[-1]
         if last < grid.size - 1:
-            a = grid[last]
-            b = grid[last + 1]
-            for _ in range(max_iter):
-                mid = 0.5 * (a + b)
-                if rejected(mid, t):
-                    b = mid
-                else:
-                    a = mid
-                if b - a <= tol:
-                    break
-            upper[t] = 0.5 * (a + b)
+            upper_times.append(time_index)
+            upper_a.append(grid[last])
+            upper_b.append(grid[last + 1])
+
+    def refine_side(times, a_values, b_values, side):
+        if not times:
+            return None
+
+        times = np.asarray(times, dtype=int)
+        a_values = np.asarray(a_values, dtype=float)
+        b_values = np.asarray(b_values, dtype=float)
+
+        for _ in range(max_iter):
+            mids = 0.5 * (a_values + b_values)
+            mid_log_wealth = log_wealth_fn(mids)[np.arange(mids.size), times]
+            rejected = mid_log_wealth >= threshold
+
+            if side == "lower":
+                a_values = np.where(rejected, mids, a_values)
+                b_values = np.where(rejected, b_values, mids)
+            else:
+                a_values = np.where(rejected, a_values, mids)
+                b_values = np.where(rejected, mids, b_values)
+
+            if np.all(b_values - a_values <= tol):
+                break
+
+        return times, 0.5 * (a_values + b_values)
+
+    refined_lower = refine_side(lower_times, lower_a, lower_b, "lower")
+    if refined_lower is not None:
+        times, values = refined_lower
+        lower[times] = values
+
+    refined_upper = refine_side(upper_times, upper_a, upper_b, "upper")
+    if refined_upper is not None:
+        times, values = refined_upper
+        upper[times] = values
 
     return lower, upper
 
