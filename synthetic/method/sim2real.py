@@ -49,7 +49,6 @@ def simulator_bank_mixture_moments(samples, simulators, eta=5.0):
     log_weights = np.zeros(len(simulators), dtype=float)
     mixture_means = np.empty(samples.size, dtype=float)
     mixture_variances = np.empty(samples.size, dtype=float)
-    weights_history = np.empty((samples.size, len(simulators)), dtype=float)
 
     for t, sample in enumerate(samples):
         stable = log_weights - np.max(log_weights)
@@ -58,12 +57,11 @@ def simulator_bank_mixture_moments(samples, simulators, eta=5.0):
 
         mixture_means[t] = float(weights @ sim_means)
         mixture_variances[t] = float(np.maximum(weights @ sim_variances, 1e-8))
-        weights_history[t] = weights
 
         scores = gaussian_log_likelihood(sample, sim_means, sim_variances)
         log_weights += eta * scores
 
-    return mixture_means, mixture_variances, weights_history
+    return mixture_means, mixture_variances
 
 
 def bounds_from_samples(
@@ -81,7 +79,7 @@ def bounds_from_samples(
         raise ValueError("confidence must be in (0, 1)")
     alpha = 1.0 - confidence
     samples = np.asarray(samples, dtype=float).ravel()
-    means, variances, weights = simulator_bank_mixture_moments(
+    means, variances = simulator_bank_mixture_moments(
         samples=samples,
         simulators=simulators,
         eta=eta,

@@ -6,6 +6,9 @@ import numpy as np
 from matplotlib.colors import LogNorm
 from matplotlib.colors import TwoSlopeNorm
 
+from demo import real_sets
+from demo import sim_banks
+
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 
@@ -41,7 +44,20 @@ SIM2REAL_COLORS = {
     "Sim_252": "#2f79b7",
     "Sim_504": "#0f5f9f",
     "Sim_756": "#083d77",
+    "Sim_1260": "#0050a4",
+    "Sim_10080": "#002f6c",
     "Sim_7_biased": "#b8d5ea",
+}
+
+
+SIM_MARKERS = {
+    "Sim_35": "^",
+    "Sim_252": "s",
+    "Sim_504": "D",
+    "Sim_756": "P",
+    "Sim_1260": "D",
+    "Sim_10080": "D",
+    "Sim_7_biased": "X",
 }
 
 
@@ -334,8 +350,140 @@ def plot_eta_ablation(path, save):
     print(f"saved {save}")
 
 
+def distribution_points(named_distributions):
+    points = []
+    for name, distribution in named_distributions:
+        points.append({
+            "name": name,
+            "mean": float(distribution.true_mean()),
+            "variance": float(distribution.true_variance()),
+        })
+    return points
+
+
+def nearest_sim_distances(real_points, sim_points):
+    if not real_points or not sim_points:
+        return [], []
+    real_xy = np.array([[point["mean"], point["variance"]] for point in real_points])
+    sim_xy = np.array([[point["mean"], point["variance"]] for point in sim_points])
+    scale = np.array([
+        max(np.ptp(np.r_[real_xy[:, 0], sim_xy[:, 0]]), 1e-6),
+        max(np.ptp(np.r_[real_xy[:, 1], sim_xy[:, 1]]), 1e-6),
+    ])
+    distances = np.linalg.norm((real_xy[:, None, :] - sim_xy[None, :, :]) / scale, axis=2)
+    nearest_idx = np.argmin(distances, axis=1)
+    nearest_dist = distances[np.arange(len(real_points)), nearest_idx]
+    return nearest_idx, nearest_dist
+
+
+def plot_distribution_geometry_by_bank(save):
+    real_groups = real_sets()
+    banks = sim_banks()
+    n_rows = len(real_groups)
+    n_cols = len(banks)
+    fig, axes = plt.subplots(
+        n_rows,
+        n_cols,
+        figsize=(3.1 * n_cols, 2.75 * n_rows),
+        squeeze=False,
+    )
+
+    for row_idx, (real_name, real_distributions) in enumerate(real_groups.items()):
+        real_points = distribution_points(real_distributions)
+        for col_idx, (bank_name, bank) in enumerate(banks.items()):
+            ax = axes[row_idx, col_idx]
+            sim_points = distribution_points([
+                (f"{bank_name}_{idx:03d}", distribution)
+                for idx, distribution in enumerate(bank)
+            ])
+            nearest_idx, nearest_dist = nearest_sim_distances(real_points, sim_points)
+
+            sim_means = np.array([point["mean"] for point in sim_points])
+            sim_vars = np.array([point["variance"] for point in sim_points])
+            real_means = np.array([point["mean"] for point in real_points])
+            real_vars = np.array([point["variance"] for point in real_points])
+
+            ax.scatter(
+                sim_means,
+                sim_vars,
+                s=18,
+                marker=SIM_MARKERS.get(bank_name, "o"),
+                color=SIM2REAL_COLORS.get(bank_name, "#1f77b4"),
+                edgecolors="none",
+                alpha=0.42,
+                rasterized=True,
+            )
+            ax.scatter(
+                real_means,
+                real_vars,
+                s=38,
+                marker="o",
+                facecolors="#111111",
+                edgecolors="white",
+                linewidths=0.55,
+                alpha=0.96,
+                zorder=5,
+            )
+
+            for real_point, idx in zip(real_points, nearest_idx):
+                sim_point = sim_points[int(idx)]
+                ax.plot(
+                    [real_point["mean"], sim_point["mean"]],
+                    [real_point["variance"], sim_point["variance"]],
+                    color="#555555",
+                    linewidth=0.45,
+                    alpha=0.20,
+                    zorder=1,
+                )
+
+            all_means = np.r_[real_means, sim_means]
+            all_vars = np.r_[real_vars, sim_vars]
+            mean_pad = max(0.015, 0.08 * np.ptp(all_means))
+            var_pad = max(0.003, 0.10 * np.ptp(all_vars))
+            ax.set_xlim(max(-0.02, float(np.min(all_means) - mean_pad)), min(1.02, float(np.max(all_means) + mean_pad)))
+            ax.set_ylim(max(-0.006, float(np.min(all_vars) - var_pad)), min(0.256, float(np.max(all_vars) + var_pad)))
+            ax.grid(alpha=0.22)
+
+            if row_idx == 0:
+                ax.set_title(bank_name, fontsize=17)
+            if col_idx == 0:
+                ax.set_ylabel(f"{real_name}\nvariance", fontsize=15)
+            if row_idx == n_rows - 1:
+                ax.set_xlabel("mean", fontsize=15)
+
+            if len(nearest_dist):
+                ax.text(
+                    0.03,
+                    0.95,
+                    f"median NN: {np.median(nearest_dist):.2f}",
+                    transform=ax.transAxes,
+                    ha="left",
+                    va="top",
+                    fontsize=11,
+                    color="#222222",
+                    bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.70, "pad": 1.8},
+                )
+
+    real_handle = axes[0, 0].scatter([], [], s=48, marker="o", facecolors="#111111", edgecolors="white", linewidths=0.55)
+    sim_handle = axes[0, 0].scatter([], [], s=34, marker="s", color="#2f79b7", edgecolors="none", alpha=0.55)
+    line_handle, = axes[0, 0].plot([], [], color="#555555", linewidth=0.7, alpha=0.35)
+    fig.legend(
+        [real_handle, sim_handle, line_handle],
+        ["Real distribution", "Simulator", "nearest simulator link"],
+        loc="lower center",
+        ncol=3,
+        frameon=False,
+        fontsize=15,
+        bbox_to_anchor=(0.5, 0.005),
+    )
+    fig.subplots_adjust(left=0.055, right=0.995, bottom=0.115, top=0.92, hspace=0.20, wspace=0.14)
+    fig.savefig(save, dpi=180)
+    print(f"saved {save}")
+
+
 def main():
     os.makedirs(DATA_DIR, exist_ok=True)
+    plot_distribution_geometry_by_bank(os.path.join(DATA_DIR, "distribution_geometry_by_bank.png"))
     plot_width_curves(os.path.join(DATA_DIR, "width_curves.csv"), os.path.join(DATA_DIR, "width_curves.png"))
     plot_coverage_curves(os.path.join(DATA_DIR, "coverage_curves.csv"), os.path.join(DATA_DIR, "coverage_curves.png"))
     plot_eta_ablation(os.path.join(DATA_DIR, "eta_ablation.csv"), os.path.join(DATA_DIR, "eta_ablation.png"))

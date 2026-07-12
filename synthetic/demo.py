@@ -21,10 +21,18 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 N_SAMPLES = 200
 N_SEEDS = 100
 CONFIDENCE = 0.95
+GLOBAL_BANK_SIZE = 10080
 HORIZONS = (10, 20, 50, 100, 200)
 VINCENT_GAPS = (0.05, 0.10, 0.20, 0.30)
 ETA_ABLATION_VALUES = (0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 25.0, 50.0)
-ETA_ABLATION_BANKS = ("Sim_35", "Sim_252", "Sim_756", "Sim_7_biased")
+ETA_ABLATION_BANKS = ("Sim_35", "Sim_252", "Sim_756", f"Sim_{GLOBAL_BANK_SIZE}", "Sim_7_biased")
+SIM2REAL_ETA_BY_BANK = {
+    "Sim_35": 5.0,
+    "Sim_252": 2.0,
+    "Sim_756": 1.0,
+    f"Sim_{GLOBAL_BANK_SIZE}": 25.0,
+    "Sim_7_biased": 5.0,
+}
 ETA_ABLATION_SEEDS = tuple(range(N_SEEDS))
 ETA_ABLATION_MAX_DISTS = 20
 N_WORKERS = max(1, min(os.cpu_count() or 1, 8))
@@ -63,25 +71,40 @@ def real_sets():
         ("GaussianMix_02_05", GaussianMixture([0.2, 0.5], [0.10, 0.10], [0.6, 0.4])),
     ]
     real_100 = []
-    for mean in np.linspace(0.08, 0.92, 40):
-        concentration = 80.0 if mean < 0.5 else 90.0
+    for mean in np.linspace(0.08, 0.92, 20):
+        concentration = 85.0 if mean < 0.5 else 95.0
         real_100.append((
             f"Beta_tight_{mean:.3f}".replace(".", "_"),
             BetaSkewed(mean * concentration, (1.0 - mean) * concentration),
         ))
-    for i, mu in enumerate(np.linspace(0.06, 0.94, 40)):
-        sigma = 0.025 + 0.01 * (i % 4)
+
+    for i, mean in enumerate(np.linspace(0.08, 0.92, 20)):
+        concentration = 2.4 + 0.6 * (i % 5)
         real_100.append((
-            f"TruncNorm_tight_{mu:.3f}".replace(".", "_"),
-            TruncatedNormal(float(mu), sigma),
+            f"Beta_wide_{mean:.3f}_{i % 5}".replace(".", "_"),
+            BetaSkewed(mean * concentration, (1.0 - mean) * concentration),
         ))
-    for i, center in enumerate(np.linspace(0.15, 0.85, 20)):
-        gap = 0.08 + 0.02 * (i % 3)
-        means = [max(center - gap, 0.02), min(center + gap, 0.98)]
-        sigmas = [0.025 + 0.005 * (i % 2), 0.03 + 0.005 * ((i + 1) % 2)]
-        weights = [0.45 + 0.05 * (i % 3), 0.55 - 0.05 * (i % 3)]
+
+    for p in np.linspace(0.025, 0.975, 20):
         real_100.append((
-            f"GaussianMix_tight_{i:02d}",
+            f"Bernoulli_{p:.3f}".replace(".", "_"),
+            BernoulliRare(float(p)),
+        ))
+
+    for i, loc in enumerate(np.linspace(0.02, 0.98, 20)):
+        spike_prob = [0.15, 0.35, 0.55, 0.75][i % 4]
+        real_100.append((
+            f"UniformSpike_grid_{i:02d}",
+            UniformSpike(float(loc), spike_prob),
+        ))
+
+    for i, center in enumerate(np.linspace(0.15, 0.85, 20)):
+        gap = 0.16 + 0.04 * (i % 4)
+        means = [max(center - gap, 0.02), min(center + gap, 0.98)]
+        sigmas = [0.04 + 0.015 * (i % 3), 0.05 + 0.015 * ((i + 1) % 3)]
+        weights = [0.35 + 0.10 * (i % 4), 0.65 - 0.10 * (i % 4)]
+        real_100.append((
+            f"GaussianMix_broad_{i:02d}",
             GaussianMixture(means, sigmas, weights),
         ))
     return {
@@ -122,13 +145,13 @@ def make_sparse_bank():
 
 def make_biased_bank():
     return [
-        BetaSkewed(0.4, 3.0),
-        BetaSkewed(0.7, 4.0),
-        BetaSkewed(1.0, 5.0),
+        BetaSkewed(0.43, 3.07),
+        BetaSkewed(0.73, 4.11),
+        BetaSkewed(1.03, 5.17),
         TruncatedNormal(0.15, 0.08),
         TruncatedNormal(0.25, 0.10),
-        UniformSpike(0.1, 0.5),
-        BimodalMixture(0.9),
+        UniformSpike(0.11, 0.47),
+        BimodalMixture(0.91),
     ]
 
 
@@ -163,26 +186,77 @@ def _perturb_distribution(dist, level):
     raise TypeError(f"unsupported distribution type: {type(dist).__name__}")
 
 
-def make_matched_bank(variants_per_real):
+def make_support_bank(size):
     bank = []
+    idx = 0
+    while len(bank) < size:
+        phase = idx % 5
+        sweep = idx // 5
+        u = ((sweep * 37 + phase * 11) % 101 + 0.37) / 102.0
+
+        if phase == 0:
+            p = _clip01(0.015 + 0.97 * u, eps=0.004)
+            bank.append(BernoulliRare(p))
+        elif phase == 1:
+            mean = _clip01(0.025 + 0.95 * u, eps=0.01)
+            concentration = 2.15 + 11.0 * (((sweep * 13) % 17) / 16.0)
+            bank.append(BetaSkewed(mean * concentration, (1.0 - mean) * concentration))
+        elif phase == 2:
+            loc = _clip01(0.015 + 0.97 * u, eps=0.01)
+            prob = _clip01(0.08 + 0.84 * (((sweep * 19 + 7) % 29) / 28.0), eps=0.02)
+            bank.append(UniformSpike(loc, prob))
+        elif phase == 3:
+            center = 0.08 + 0.84 * u
+            gap = 0.14 + 0.18 * (((sweep * 23 + 5) % 31) / 30.0)
+            means = [max(center - gap, 0.01), min(center + gap, 0.99)]
+            sigmas = [
+                0.025 + 0.10 * (((sweep * 7 + 3) % 19) / 18.0),
+                0.025 + 0.10 * (((sweep * 5 + 9) % 19) / 18.0),
+            ]
+            weight = _clip01(0.18 + 0.64 * (((sweep * 17 + 2) % 23) / 22.0), eps=0.03)
+            bank.append(GaussianMixture(means, sigmas, [weight, 1.0 - weight]))
+        else:
+            mu = _clip01(0.02 + 0.96 * u, eps=0.02)
+            sigma = 0.035 + 0.22 * (((sweep * 29 + 1) % 37) / 36.0)
+            bank.append(TruncatedNormal(mu, sigma))
+        idx += 1
+    return bank
+
+
+def make_global_bank(size):
+    rng = np.random.default_rng(1260)
+    bank = []
+
+    for _ in range(size):
+        mean = rng.uniform(0.01, 0.99)
+        variance_fraction = rng.uniform(0.015, 0.985)
+        concentration = 1.0 / variance_fraction - 1.0
+        bank.append(BetaSkewed(mean * concentration, (1.0 - mean) * concentration))
+    return bank
+
+
+def make_matched_bank(variants_per_real):
+    local_bank = []
     for dists in real_sets().values():
         for _, dist in dists:
-            for level in range(variants_per_real):
-                bank.append(_perturb_distribution(dist, level))
-    return bank
+            for level in range(max(1, variants_per_real // 2)):
+                local_bank.append(_perturb_distribution(dist, level))
+    target_size = variants_per_real * sum(len(dists) for dists in real_sets().values())
+    support_bank = make_support_bank(target_size - len(local_bank))
+    return local_bank + support_bank
 
 
 def sim_banks():
     sparse = make_sparse_bank()[:35]
     matched_2 = make_matched_bank(2)
-    matched_4 = make_matched_bank(4)
+    global_bank = make_global_bank(GLOBAL_BANK_SIZE)
     matched_6 = make_matched_bank(6)
     biased = make_biased_bank()
     return {
         "Sim_35": sparse,
         f"Sim_{len(matched_2)}": matched_2,
-        f"Sim_{len(matched_4)}": matched_4,
         f"Sim_{len(matched_6)}": matched_6,
+        f"Sim_{len(global_bank)}": global_bank,
         f"Sim_{len(biased)}_biased": biased,
     }
 
@@ -287,6 +361,7 @@ def run_main_task(task):
             N_SAMPLES,
             bank,
             confidence=CONFIDENCE,
+            eta=SIM2REAL_ETA_BY_BANK[bank_name],
             refine=refine,
             kappa=1.0,
         )
