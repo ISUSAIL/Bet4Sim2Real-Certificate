@@ -12,6 +12,9 @@ except ImportError:
     from e_value import refined_confidence_sequence_from_log_wealth
 
 
+_SIMULATOR_MOMENT_CACHE = {}
+
+
 def gaussian_log_likelihood(samples, means, variances, variance_floor=1e-8):
     """Gaussian score used to update simulator-bank trust weights online."""
     samples = np.asarray(samples, dtype=float)
@@ -22,9 +25,15 @@ def gaussian_log_likelihood(samples, means, variances, variance_floor=1e-8):
 
 def simulator_moments(simulators):
     """Extract mean and variance from simulator distributions."""
+    cache_key = tuple(id(sim) for sim in simulators)
+    if cache_key in _SIMULATOR_MOMENT_CACHE:
+        return _SIMULATOR_MOMENT_CACHE[cache_key]
+
     means = np.array([sim.true_mean() for sim in simulators], dtype=float)
     variances = np.array([sim.true_variance() for sim in simulators], dtype=float)
-    return means, np.maximum(variances, 1e-8)
+    result = (means, np.maximum(variances, 1e-8))
+    _SIMULATOR_MOMENT_CACHE[cache_key] = result
+    return result
 
 
 def simulator_bank_mixture_moments(samples, simulators, eta=5.0):

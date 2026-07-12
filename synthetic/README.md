@@ -1,6 +1,7 @@
 # Synthetic Certificates
 
 This folder will hold synthetic experiments for comparing certificate methods.
+The default experiment uses 100 seeds, matching the RSS synthetic examples.
 
 Planned method files:
 
@@ -15,3 +16,20 @@ Entry points:
 
 - `demo.py`: run synthetic certificate comparisons.
 - `plot_demo.py`: plot synthetic certificate comparison results.
+
+Run:
+
+```bash
+python demo.py
+python plot_demo.py
+```
+
+Outputs are written to `data/`:
+
+- `summary.csv`: final width, mean width, final coverage, and anytime coverage by distribution and method.
+- `width_curves.csv`: mean certificate width at selected sample counts.
+- `coverage_curves.csv`: empirical coverage at selected sample counts.
+- `eta_ablation.csv`: proposed-method eta sensitivity at selected sample counts.
+- `width_curves.png`: width-over-samples plot.
+- `coverage_curves.png`: coverage heatmap centered at the target confidence.
+- `eta_ablation.png`: eta-ablation heatmap.

@@ -1,11 +1,345 @@
-from method import concentration
-from method import distributions
-from method import e_value
-from method import p_value
-from method import sim2real
-from method import vincent
+import csv
+import os
+
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.colors import LogNorm
+from matplotlib.colors import TwoSlopeNorm
 
 
-# Plotting entry point for synthetic certificate experiments.
-# Use this file for visual comparisons across the proposed sim-to-real
-# certificate and the baseline methods in the method package.
+DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+
+plt.rcParams.update({
+    "font.family": "serif",
+    "font.serif": ["Times New Roman", "Times", "Nimbus Roman", "DejaVu Serif"],
+    "mathtext.fontset": "stix",
+    "font.size": 14,
+    "axes.titlesize": 18,
+    "axes.labelsize": 16,
+    "xtick.labelsize": 13,
+    "ytick.labelsize": 13,
+    "legend.fontsize": 12,
+})
+
+
+LABELS = {
+    "sim2real": "sim2real",
+    "e_value_wsr": "e-value WSR",
+    "e_value_constant_0.25": "e-value constant 0.25",
+    "e_value_constant_0.5": "e-value constant 0.5",
+    "hoeffding": "Hoeffding",
+    "empirical_bernstein": "empirical Bernstein",
+    "t_test": "t-test",
+    "z_test": "z-test",
+    "sequential_t_test": "sequential t-test",
+    "vincent": "Vincent",
+}
+
+
+SIM2REAL_COLORS = {
+    "Sim_35": "#78a6cf",
+    "Sim_252": "#2f79b7",
+    "Sim_504": "#0f5f9f",
+    "Sim_756": "#083d77",
+    "Sim_7_biased": "#b8d5ea",
+}
+
+
+def read_csv(path):
+    with open(path, newline="") as f:
+        return list(csv.DictReader(f))
+
+
+def label(method, bank):
+    if method == "sim2real":
+        return f"Proposed ({bank})"
+    if method == "vincent":
+        return f"Vincent et al. ({bank.replace('_', ' ')})"
+    if method == "e_value_wsr":
+        return "e-value (WSR)"
+    if method == "e_value_constant_0.25":
+        return r"e-value ($\lambda_t=0.25$)"
+    if method == "e_value_constant_0.5":
+        return r"e-value ($\lambda_t=0.5$)"
+    if method == "t_test":
+        return "t-test"
+    if method == "z_test":
+        return "z-test"
+    if method == "sequential_t_test":
+        return "sequential t-test"
+    return LABELS.get(method, method)
+
+
+def method_order(rows):
+    sim_banks = sorted(
+        {r["bank"] for r in rows if r["method"] == "sim2real"},
+        key=lambda x: (x.endswith("_biased"), int(x.split("_")[1])),
+    )
+    order = [("sim2real", bank) for bank in sim_banks]
+    order.extend([
+        ("e_value_wsr", "none"),
+        ("e_value_constant_0.25", "none"),
+        ("e_value_constant_0.5", "none"),
+        ("hoeffding", "none"),
+        ("empirical_bernstein", "none"),
+        ("t_test", "none"),
+        ("z_test", "none"),
+        ("sequential_t_test", "none"),
+    ])
+    vincent_banks = sorted(
+        {r["bank"] for r in rows if r["method"] == "vincent"},
+        key=lambda x: float(x.split("_")[1]),
+    )
+    order.extend([("vincent", bank) for bank in vincent_banks])
+    return order
+
+
+def real_set_order(rows):
+    return sorted({row["real_set"] for row in rows}, key=lambda name: int(name.split("_")[1]))
+
+
+def style_for(method, bank, highlighted_bank):
+    if method == "sim2real":
+        style = {
+            "color": SIM2REAL_COLORS.get(bank, "#1f77b4"),
+            "linewidth": 2.0,
+            "alpha": 0.88,
+        }
+        if bank == highlighted_bank:
+            style.update({"linewidth": 3.0, "alpha": 1.0})
+        if bank.endswith("_biased"):
+            style.update({"linestyle": "--", "alpha": 0.58, "linewidth": 2.0})
+        return style
+    if method.startswith("e_value"):
+        if method == "e_value_wsr":
+            return {"color": "#d95f02", "linewidth": 2.1, "alpha": 0.95}
+        if method.endswith("0.25"):
+            return {"color": "#fdb863", "linewidth": 1.6, "alpha": 0.78, "linestyle": ":"}
+        return {"color": "#e08214", "linewidth": 1.8, "alpha": 0.86, "linestyle": "-."}
+    if method in ("hoeffding", "empirical_bernstein"):
+        return {
+            "color": "#8c6bb1" if method == "hoeffding" else "#6a51a3",
+            "linewidth": 1.8,
+            "alpha": 0.82,
+            "linestyle": "--" if method == "hoeffding" else "-.",
+        }
+    if method in ("t_test", "z_test", "sequential_t_test"):
+        styles = {
+            "t_test": ":",
+            "z_test": "-.",
+            "sequential_t_test": "--",
+        }
+        return {"color": "#444444", "linewidth": 1.7, "alpha": 0.75, "linestyle": styles[method]}
+    if method == "vincent":
+        gap = float(bank.split("_")[1])
+        colors = {
+            0.05: "#7a0177",
+            0.10: "#ae017e",
+            0.20: "#dd3497",
+            0.30: "#f768a1",
+        }
+        return {
+            "color": colors.get(gap, "#b45a4a"),
+            "linewidth": 1.7,
+            "alpha": 0.84,
+            "linestyle": "--",
+        }
+    return {}
+
+
+def plot_width_curves(path, save):
+    rows = read_csv(path)
+    order = method_order(rows)
+    real_sets = real_set_order(rows)
+    fig, axes_grid = plt.subplots(2, 2, figsize=(12.2, 8.0), sharey=False)
+    axes = axes_grid.ravel()
+    legend_ax = axes[-1]
+    legend_ax.axis("off")
+    highlighted_bank = [bank for method, bank in order if method == "sim2real" and not bank.endswith("_biased")][-1]
+    legend_entries = {}
+
+    for ax, real_set in zip(axes, real_sets):
+        plotted_widths = []
+        for method, bank in order:
+            series = [r for r in rows if r["real_set"] == real_set and r["method"] == method and r["bank"] == bank]
+            if not series:
+                continue
+            n = np.array([int(r["n"]) for r in series])
+            width = np.array([float(r["mean_width"]) for r in series])
+            plotted_widths.extend(width[np.isfinite(width) & (width > 0)])
+            idx = np.argsort(n)
+            line, = ax.plot(
+                n[idx],
+                width[idx],
+                marker="o",
+                markersize=4,
+                label=label(method, bank),
+                **style_for(method, bank, highlighted_bank),
+            )
+            line_label = label(method, bank)
+            legend_entries.setdefault((method, bank), (line, line_label))
+
+        ax.set_title(real_set)
+        ax.set_xlabel("samples")
+        ax.set_yscale("log")
+        if plotted_widths:
+            ymin = min(plotted_widths)
+            ymax = max(plotted_widths)
+            ax.set_ylim(ymin / 1.18, ymax * 1.18)
+        ax.grid(alpha=0.25)
+
+    axes[0].set_ylabel("mean certificate width")
+    axes[2].set_ylabel("mean certificate width")
+    groups = [
+        ("Proposed", [(method, bank) for method, bank in order if method == "sim2real"], (0.02, 0.98)),
+        ("e-values", [(method, bank) for method, bank in order if method.startswith("e_value")], (0.52, 0.98)),
+        ("Concentration", [(method, bank) for method, bank in order if method in (
+            "hoeffding",
+            "empirical_bernstein",
+        )], (0.52, 0.62)),
+        ("p-values", [(method, bank) for method, bank in order if method in (
+            "t_test",
+            "z_test",
+            "sequential_t_test",
+        )], (0.52, 0.40)),
+        ("Vincent et al.", [(method, bank) for method, bank in order if method == "vincent"], (0.02, 0.38)),
+    ]
+    for title, keys, anchor in groups:
+        entries = [legend_entries[key] for key in keys if key in legend_entries]
+        if not entries:
+            continue
+        group_handles, group_labels = zip(*entries)
+        legend_ax.text(anchor[0], anchor[1], title, transform=legend_ax.transAxes, fontsize=15, fontweight="bold", va="top")
+        legend = legend_ax.legend(
+            group_handles,
+            group_labels,
+            frameon=False,
+            fontsize=12,
+            loc="upper left",
+            bbox_to_anchor=(anchor[0], anchor[1] - 0.06),
+            bbox_transform=legend_ax.transAxes,
+            handlelength=2.5,
+            labelspacing=0.55,
+            borderaxespad=0.0,
+        )
+        legend_ax.add_artist(legend)
+    fig.tight_layout()
+    fig.savefig(save, dpi=180)
+    print(f"saved {save}")
+
+
+def plot_coverage_curves(path, save):
+    rows = read_csv(path)
+    order = method_order(rows)
+    real_sets = real_set_order(rows)
+    horizons = sorted({int(row["n"]) for row in rows})
+    row_keys = [key for key in order if any(r["method"] == key[0] and r["bank"] == key[1] for r in rows)]
+    fig, axes = plt.subplots(1, len(real_sets), figsize=(4.9 * len(real_sets), 5.6), sharey=True)
+    if len(real_sets) == 1:
+        axes = [axes]
+
+    norm = TwoSlopeNorm(vmin=0.70, vcenter=0.95, vmax=1.00)
+    im = None
+
+    for ax, real_set in zip(axes, real_sets):
+        grid = np.full((len(row_keys), len(horizons)), np.nan)
+        for row in rows:
+            key = (row["method"], row["bank"])
+            if row["real_set"] != real_set or key not in row_keys:
+                continue
+            grid[row_keys.index(key), horizons.index(int(row["n"]))] = float(row["coverage"])
+
+        im = ax.imshow(grid, aspect="auto", cmap="RdBu", norm=norm)
+        ax.set_title(real_set)
+        ax.set_xlabel("samples")
+        ax.set_xticks(range(len(horizons)), [str(h) for h in horizons])
+        ax.set_yticks(range(len(row_keys)), [label(*key) for key in row_keys])
+
+        for i in range(grid.shape[0]):
+            for j in range(grid.shape[1]):
+                value = grid[i, j]
+                text_color = "white" if value < 0.82 or value >= 0.97 else "#222222"
+                ax.text(j, i, f"{value:.0%}", ha="center", va="center", fontsize=9, color=text_color)
+
+    fig.subplots_adjust(left=0.15, right=0.88, bottom=0.12, top=0.90, wspace=0.08)
+    cax = fig.add_axes([0.90, 0.18, 0.018, 0.64])
+    cbar = fig.colorbar(im, cax=cax)
+    cbar.set_label("coverage; centered at 95%")
+    fig.savefig(save, dpi=180)
+    print(f"saved {save}")
+
+
+def plot_eta_ablation(path, save):
+    rows = read_csv(path)
+    real_sets = real_set_order(rows)
+    banks = sorted(
+        {row["bank"] for row in rows},
+        key=lambda name: (name.endswith("_biased"), int(name.split("_")[1])),
+    )
+    horizons = [10, 20, 50, 100, 200]
+    etas = sorted({float(row["eta"]) for row in rows})
+    positive = []
+    for row in rows:
+        for horizon in horizons:
+            value = float(row[f"width_{horizon}"])
+            if value > 0:
+                positive.append(value)
+
+    fig, axes = plt.subplots(
+        len(banks),
+        len(real_sets),
+        figsize=(4.1 * len(real_sets), 2.55 * len(banks)),
+        sharex=True,
+        sharey=True,
+    )
+    if len(banks) == 1:
+        axes = np.array([axes])
+    if len(real_sets) == 1:
+        axes = axes[:, None]
+
+    norm = LogNorm(vmin=float(np.min(positive)), vmax=float(np.max(positive)))
+    im = None
+    for i, bank in enumerate(banks):
+        for j, real_set in enumerate(real_sets):
+            ax = axes[i, j]
+            grid = np.full((len(horizons), len(etas)), np.nan)
+            for row in rows:
+                if row["real_set"] != real_set or row["bank"] != bank:
+                    continue
+                eta_idx = etas.index(float(row["eta"]))
+                for h_idx, horizon in enumerate(horizons):
+                    grid[h_idx, eta_idx] = float(row[f"width_{horizon}"])
+
+            im = ax.imshow(grid, aspect="auto", cmap="viridis_r", norm=norm)
+            if i == 0:
+                ax.set_title(real_set, fontsize=22)
+            if j == 0:
+                ax.set_ylabel(f"{bank}\nsamples", fontsize=20)
+            if i == len(banks) - 1:
+                ax.set_xlabel("eta", fontsize=20)
+            ax.set_xticks(range(len(etas)), [f"{eta:g}" for eta in etas], rotation=45, ha="right", fontsize=16)
+            ax.set_yticks(range(len(horizons)), [str(horizon) for horizon in horizons], fontsize=16)
+
+            for h_idx in range(len(horizons)):
+                for eta_idx in range(len(etas)):
+                    value = grid[h_idx, eta_idx]
+                    ax.text(eta_idx, h_idx, f"{value:.2f}", ha="center", va="center", fontsize=11, color="white")
+
+    fig.subplots_adjust(left=0.095, right=0.865, bottom=0.095, top=0.94, hspace=0.16, wspace=0.08)
+    cax = fig.add_axes([0.89, 0.18, 0.022, 0.64])
+    cbar = fig.colorbar(im, cax=cax)
+    cbar.set_label("mean certificate width", fontsize=20)
+    cbar.ax.tick_params(labelsize=16)
+    fig.savefig(save, dpi=180)
+    print(f"saved {save}")
+
+
+def main():
+    os.makedirs(DATA_DIR, exist_ok=True)
+    plot_width_curves(os.path.join(DATA_DIR, "width_curves.csv"), os.path.join(DATA_DIR, "width_curves.png"))
+    plot_coverage_curves(os.path.join(DATA_DIR, "coverage_curves.csv"), os.path.join(DATA_DIR, "coverage_curves.png"))
+    plot_eta_ablation(os.path.join(DATA_DIR, "eta_ablation.csv"), os.path.join(DATA_DIR, "eta_ablation.png"))
+
+
+if __name__ == "__main__":
+    main()
