@@ -4,6 +4,22 @@ Measurement: Interception Rate,Search Time, distance
 distance: the average of per-marker L2 distance in each run
 (arm's end-effector(EOAT rigid body, tracked by the OTS motion-capture system) and the ground-truth fiducial marker position)
 
+## Certificate comparison
+
+Run the same certificate methods and hyperparameters used by the ASTM demo:
+
+```bash
+cd nist_continuous_manipulation
+python demo.py
+python plot_demo.py
+```
+
+The three measures are normalized only while computing certificates, using
+fixed bounds of `[0, 1]` for interception rate, `[0, 12]` seconds for search
+time, and `[0, 30]` millimetres for distance error. Reported and plotted
+certificate widths are converted back to percentage points, seconds, and
+millimetres. Generated CSV results and plots are saved under `data/`.
+
 ## Dataset
 
 We provide 2 methods to obtain the dataset.
