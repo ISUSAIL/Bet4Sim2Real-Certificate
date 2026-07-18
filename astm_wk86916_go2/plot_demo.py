@@ -32,6 +32,24 @@ SIM2REAL_COLORS = {
     "Sim_7_biased": "#b8d5ea",
 }
 
+CONCENTRATION_COLORS = {
+    "hoeffding": "#31a354",
+    "empirical_bernstein": "#006d2c",
+}
+
+PVALUE_COLORS = {
+    "t_test": "#969696",
+    "z_test": "#636363",
+    "sequential_t_test": "#252525",
+}
+
+VINCENT_COLORS = {
+    0.05: "#7a0177",
+    0.10: "#ae017e",
+    0.20: "#dd3497",
+    0.30: "#f768a1",
+}
+
 
 MEASURE_LABELS = {
     "pos_error_l2": ("Position error", "certificate width (mm)"),
@@ -127,18 +145,17 @@ def style_for(method, bank):
         return {"color": "#e08214", "linewidth": 1.8, "alpha": 0.86, "linestyle": "-."}
     if method in ("hoeffding", "empirical_bernstein"):
         return {
-            "color": "#8c6bb1" if method == "hoeffding" else "#6a51a3",
+            "color": CONCENTRATION_COLORS[method],
             "linewidth": 1.8,
-            "alpha": 0.82,
+            "alpha": 0.88,
             "linestyle": "--" if method == "hoeffding" else "-.",
         }
     if method in ("t_test", "z_test", "sequential_t_test"):
         styles = {"t_test": ":", "z_test": "-.", "sequential_t_test": "--"}
-        return {"color": "#444444", "linewidth": 1.7, "alpha": 0.75, "linestyle": styles[method]}
+        return {"color": PVALUE_COLORS[method], "linewidth": 1.9, "alpha": 0.86, "linestyle": styles[method]}
     if method == "vincent":
-        colors = {0.05: "#7a0177", 0.10: "#ae017e", 0.20: "#dd3497"}
         return {
-            "color": colors.get(float(bank.split("_")[-1]), "#b45a4a"),
+            "color": VINCENT_COLORS.get(float(bank.split("_")[-1]), "#b45a4a"),
             "linewidth": 1.7,
             "alpha": 0.84,
             "linestyle": "--",
@@ -150,7 +167,7 @@ def plot_width_curves():
     rows = read_csv(DATA_DIR / "certificate_widths.csv")
     order = method_order(rows)
     measures = list(dict.fromkeys(row["measure"] for row in rows))
-    fig, axes = plt.subplots(1, len(measures), figsize=(7.2 * len(measures), 5.0), sharey=False)
+    fig, axes = plt.subplots(1, len(measures), figsize=(7.2 * len(measures), 5.8), sharey=False)
     if len(measures) == 1:
         axes = [axes]
 
@@ -186,10 +203,10 @@ def plot_width_curves():
         ax.grid(alpha=0.25)
 
     handles, labels = zip(*[legend_entries[key] for key in order if key in legend_entries])
-    fig.legend(handles, labels, loc="lower center", ncol=4, frameon=False, bbox_to_anchor=(0.5, -0.08))
-    fig.subplots_adjust(left=0.075, right=0.99, bottom=0.28, top=0.88, wspace=0.24)
+    fig.legend(handles, labels, loc="lower center", ncol=5, frameon=False, bbox_to_anchor=(0.5, 0.01))
+    fig.subplots_adjust(left=0.075, right=0.99, bottom=0.35, top=0.88, wspace=0.24)
     save = DATA_DIR / "width_curves.png"
-    fig.savefig(save, dpi=180)
+    fig.savefig(save, dpi=180, bbox_inches="tight")
     print(f"saved {save}")
 
 

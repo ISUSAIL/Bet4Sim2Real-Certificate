@@ -49,6 +49,24 @@ SIM2REAL_COLORS = {
     "Sim_7_biased": "#b8d5ea",
 }
 
+CONCENTRATION_COLORS = {
+    "hoeffding": "#31a354",
+    "empirical_bernstein": "#006d2c",
+}
+
+PVALUE_COLORS = {
+    "t_test": "#969696",
+    "z_test": "#636363",
+    "sequential_t_test": "#252525",
+}
+
+VINCENT_COLORS = {
+    0.05: "#7a0177",
+    0.10: "#ae017e",
+    0.20: "#dd3497",
+    0.30: "#f768a1",
+}
+
 
 SIM_MARKERS = {
     "Sim_35": "^",
@@ -124,9 +142,9 @@ def style_for(method, bank, highlighted_bank):
     if method == "sim2real":
         if bank == "Ideal":
             return {
-                "color": "#000000",
-                "linewidth": 2.5,
-                "alpha": 0.80,
+                "color": "#00a6c8",
+                "linewidth": 3.0,
+                "alpha": 0.95,
                 "linestyle": "-",
             }
         style = {
@@ -147,9 +165,9 @@ def style_for(method, bank, highlighted_bank):
         return {"color": "#e08214", "linewidth": 1.8, "alpha": 0.86, "linestyle": "-."}
     if method in ("hoeffding", "empirical_bernstein"):
         return {
-            "color": "#8c6bb1" if method == "hoeffding" else "#6a51a3",
+            "color": CONCENTRATION_COLORS[method],
             "linewidth": 1.8,
-            "alpha": 0.82,
+            "alpha": 0.88,
             "linestyle": "--" if method == "hoeffding" else "-.",
         }
     if method in ("t_test", "z_test", "sequential_t_test"):
@@ -158,24 +176,18 @@ def style_for(method, bank, highlighted_bank):
             "z_test": "-.",
             "sequential_t_test": "--",
         }
-        return {"color": "#444444", "linewidth": 1.7, "alpha": 0.75, "linestyle": styles[method]}
+        return {"color": PVALUE_COLORS[method], "linewidth": 1.9, "alpha": 0.86, "linestyle": styles[method]}
     if method == "vincent":
         if bank == "Ideal":
             return {
-                "color": "#4a004a",
+                "color": "#4d004b",
                 "linewidth": 2.3,
                 "alpha": 0.86,
                 "linestyle": ":",
             }
         gap = float(bank.split("_")[-1])
-        colors = {
-            0.05: "#7a0177",
-            0.10: "#ae017e",
-            0.20: "#dd3497",
-            0.30: "#f768a1",
-        }
         return {
-            "color": colors.get(gap, "#b45a4a"),
+            "color": VINCENT_COLORS.get(gap, "#b45a4a"),
             "linewidth": 1.7,
             "alpha": 0.84,
             "linestyle": "--",
@@ -404,7 +416,9 @@ def plot_distribution_geometry_by_bank(save):
     fig, axes = plt.subplots(
         n_rows,
         n_cols,
-        figsize=(3.1 * n_cols, 2.75 * n_rows),
+        figsize=(3.25 * n_cols, 2.95 * n_rows),
+        sharex=True,
+        sharey=True,
         squeeze=False,
     )
 
@@ -456,33 +470,17 @@ def plot_distribution_geometry_by_bank(save):
                     zorder=1,
                 )
 
-            all_means = np.r_[real_means, sim_means]
-            all_vars = np.r_[real_vars, sim_vars]
-            mean_pad = max(0.015, 0.08 * np.ptp(all_means))
-            var_pad = max(0.003, 0.10 * np.ptp(all_vars))
-            ax.set_xlim(max(-0.02, float(np.min(all_means) - mean_pad)), min(1.02, float(np.max(all_means) + mean_pad)))
-            ax.set_ylim(max(-0.006, float(np.min(all_vars) - var_pad)), min(0.256, float(np.max(all_vars) + var_pad)))
+            ax.set_xlim(-0.02, 1.02)
+            ax.set_ylim(-0.006, 0.256)
             ax.grid(alpha=0.22)
 
             if row_idx == 0:
-                ax.set_title(bank_name, fontsize=17)
+                ax.set_title(bank_name, fontsize=22)
             if col_idx == 0:
-                ax.set_ylabel(f"{real_name}\nvariance", fontsize=15)
+                ax.set_ylabel(f"{real_name}\nvariance", fontsize=21)
             if row_idx == n_rows - 1:
-                ax.set_xlabel("mean", fontsize=15)
-
-            if len(nearest_dist):
-                ax.text(
-                    0.03,
-                    0.95,
-                    f"median NN: {np.median(nearest_dist):.2f}",
-                    transform=ax.transAxes,
-                    ha="left",
-                    va="top",
-                    fontsize=11,
-                    color="#222222",
-                    bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.70, "pad": 1.8},
-                )
+                ax.set_xlabel("mean", fontsize=21)
+            ax.tick_params(axis="both", labelsize=17)
 
     real_handle = axes[0, 0].scatter([], [], s=48, marker="o", facecolors="#111111", edgecolors="white", linewidths=0.55)
     sim_handle = axes[0, 0].scatter([], [], s=34, marker="s", color="#2f79b7", edgecolors="none", alpha=0.55)
@@ -493,10 +491,10 @@ def plot_distribution_geometry_by_bank(save):
         loc="lower center",
         ncol=3,
         frameon=False,
-        fontsize=15,
-        bbox_to_anchor=(0.5, 0.005),
+        fontsize=20,
+        bbox_to_anchor=(0.5, 0.015),
     )
-    fig.subplots_adjust(left=0.055, right=0.995, bottom=0.115, top=0.92, hspace=0.20, wspace=0.14)
+    fig.subplots_adjust(left=0.065, right=0.995, bottom=0.165, top=0.91, hspace=0.08, wspace=0.06)
     fig.savefig(save, dpi=180)
     print(f"saved {save}")
 

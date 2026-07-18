@@ -27,7 +27,7 @@ NORMALIZATION_BOUNDS = {
     "pos_error_l2": (0.0, 0.10),
     "orientation_error_geodesic": (0.0, 0.20),
 }
-VINCENT_GAPS = (0.05, 0.10, 0.20)
+VINCENT_GAPS = (0.05, 0.10, 0.20, 0.30)
 HORIZONS = (5, 10, 20, 30)
 VINCENT_SIMULATORS = {
     "pos_error_l2": BetaSkewed(2.0, 10.0),
