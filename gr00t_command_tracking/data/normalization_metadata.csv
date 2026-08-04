@@ -1,0 +1,2 @@
+measure,normalization_lower,normalization_upper,raw_min,raw_max,raw_mean,normalized_mean,n_samples
+err_norm,0.0,1.2,0.009646,1.040706,0.20323881578947364,0.1693656798245614,38
