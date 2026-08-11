@@ -102,8 +102,8 @@ def confidence_sequence(grid, log_wealth, samples, means, variances, kappa, alph
     log_wealth = np.asarray(log_wealth, dtype=float)
     grid_size, times = log_wealth.shape
 
-    lower = np.full(times, np.nan, dtype=float)
-    upper = np.full(times, np.nan, dtype=float)
+    lower = np.zeros(times, dtype=float)
+    upper = np.ones(times, dtype=float)
 
     lower_a = np.zeros(times, dtype=float)
     lower_b = np.zeros(times, dtype=float)
@@ -121,14 +121,14 @@ def confidence_sequence(grid, log_wealth, samples, means, variances, kappa, alph
         first = accepted[0]
         last = accepted[-1]
         if first == 0:
-            lower[time_index] = grid[0]
+            lower[time_index] = 0.0
         else:
             lower_a[time_index] = grid[first - 1]
             lower_b[time_index] = grid[first]
             refine_lower[time_index] = True
 
         if last == grid_size - 1:
-            upper[time_index] = grid[-1]
+            upper[time_index] = 1.0
         else:
             upper_a[time_index] = grid[last]
             upper_b[time_index] = grid[last + 1]
@@ -136,12 +136,12 @@ def confidence_sequence(grid, log_wealth, samples, means, variances, kappa, alph
 
     refine = refine_lower | refine_upper
     if refine.any():
-        lower_current = np.where(refine_lower, 0.5 * (lower_a + lower_b), lower)
-        upper_current = np.where(refine_upper, 0.5 * (upper_a + upper_b), upper)
+        if max_iter <= 0:
+            lower = np.where(refine_lower, lower_a, lower)
+            upper = np.where(refine_upper, upper_b, upper)
+            return lower, upper
 
         for _ in range(max_iter):
-            previous_width = upper_current - lower_current
-
             if refine_lower.any():
                 candidates = np.where(refine_lower, 0.5 * (lower_a + lower_b), grid[0])
                 rejected = refine_lower & (_wealth_diag(candidates, samples, means, variances, kappa) >= threshold)
@@ -154,14 +154,13 @@ def confidence_sequence(grid, log_wealth, samples, means, variances, kappa, alph
                 upper_b = np.where(rejected, candidates, upper_b)
                 upper_a = np.where(refine_upper & ~rejected, candidates, upper_a)
 
-            lower_current = np.where(refine_lower, 0.5 * (lower_a + lower_b), lower)
-            upper_current = np.where(refine_upper, 0.5 * (upper_a + upper_b), upper)
-            change = np.nanmax(np.where(refine, np.abs((upper_current - lower_current) - previous_width), np.nan))
-            if change < tol:
+            lower_width = np.where(refine_lower, lower_b - lower_a, 0.0)
+            upper_width = np.where(refine_upper, upper_b - upper_a, 0.0)
+            if max(np.max(lower_width), np.max(upper_width)) <= tol:
                 break
 
-        lower = lower_current
-        upper = upper_current
+        lower = np.where(refine_lower, lower_a, lower)
+        upper = np.where(refine_upper, upper_b, upper)
 
     return lower, upper
 

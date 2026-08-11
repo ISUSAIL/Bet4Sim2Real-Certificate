@@ -354,7 +354,6 @@ def run_main_task(task):
     rows = []
 
     for bank_name, bank in banks.items():
-        refine = bank_name not in ("Sim_35", "Sim_7_biased")
         cert = sim2real.certificate(
             dist,
             seed,
@@ -362,7 +361,7 @@ def run_main_task(task):
             bank,
             confidence=CONFIDENCE,
             eta=SIM2REAL_ETA_BY_BANK[bank_name],
-            refine=refine,
+            refine=True,
             kappa=1.0,
         )
         rows.append(collect_result(real_set, dist_name, "sim2real", bank_name, cert, true_mean))
