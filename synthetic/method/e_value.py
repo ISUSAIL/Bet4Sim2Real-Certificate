@@ -85,15 +85,17 @@ def confidence_sequence_from_log_wealth(grid, log_wealth, alpha=0.05):
     if log_wealth.shape[0] != grid.size:
         raise ValueError("log_wealth must have one row per grid point")
 
-    lower = np.full(log_wealth.shape[1], np.nan, dtype=float)
-    upper = np.full(log_wealth.shape[1], np.nan, dtype=float)
+    lower = np.zeros(log_wealth.shape[1], dtype=float)
+    upper = np.ones(log_wealth.shape[1], dtype=float)
 
     for t in range(log_wealth.shape[1]):
         accepted = np.flatnonzero(log_wealth[:, t] < threshold)
         if accepted.size == 0:
             continue
-        lower[t] = grid[max(accepted[0] - 1, 0)]
-        upper[t] = grid[min(accepted[-1] + 1, grid.size - 1)]
+        if accepted[0] > 0:
+            lower[t] = grid[accepted[0] - 1]
+        if accepted[-1] < grid.size - 1:
+            upper[t] = grid[accepted[-1] + 1]
 
     return lower, upper
 
@@ -163,7 +165,8 @@ def refined_confidence_sequence_from_log_wealth(
             if np.all(b_values - a_values <= tol):
                 break
 
-        return times, 0.5 * (a_values + b_values)
+        values = a_values if side == "lower" else b_values
+        return times, values
 
     refined_lower = refine_side(lower_times, lower_a, lower_b, "lower")
     if refined_lower is not None:

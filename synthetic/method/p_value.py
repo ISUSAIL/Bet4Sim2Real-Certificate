@@ -37,6 +37,7 @@ def _radius(prefix, confidence, method):
         critical = _t_quantile(confidence, n - 1)
     elif method == "normal":
         critical = _z_quantile(confidence)
+        sample_std = 0.5
     elif method == "sequential_t":
         alpha = 1.0 - confidence
         confidence_n = 1.0 - alpha / (n * (n + 1.0))
@@ -51,8 +52,8 @@ def bounds_from_samples(samples, confidence=0.95, method="student_t"):
     """Two-sided real-sample p-value intervals for the mean.
 
     student_t is the usual one-sample t interval with sample standard deviation.
-    normal is a plug-in Wald/z interval with sample standard deviation, not an
-    oracle known-variance interval. sequential_t uses a simple alpha-spending
+    normal is a z interval with worst-case standard deviation 0.5.
+    sequential_t uses a simple alpha-spending
     schedule alpha_t = alpha / (t * (t + 1)).
     """
     samples = np.asarray(samples, dtype=float).ravel()
