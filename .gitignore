@@ -61,3 +61,6 @@ ENV/
 .claude
 .codex/
 AGENTS.local.md
+
+# Local generated artifacts
+/output/pdf/

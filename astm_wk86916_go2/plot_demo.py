@@ -167,7 +167,7 @@ def plot_width_curves():
     rows = read_csv(DATA_DIR / "certificate_widths.csv")
     order = method_order(rows)
     measures = list(dict.fromkeys(row["measure"] for row in rows))
-    fig, axes = plt.subplots(1, len(measures), figsize=(7.2 * len(measures), 5.8), sharey=False)
+    fig, axes = plt.subplots(1, len(measures), figsize=(7.2 * len(measures), 4.0), sharey=False)
     if len(measures) == 1:
         axes = [axes]
 
@@ -204,7 +204,7 @@ def plot_width_curves():
 
     handles, labels = zip(*[legend_entries[key] for key in order if key in legend_entries])
     fig.legend(handles, labels, loc="lower center", ncol=5, frameon=False, bbox_to_anchor=(0.5, 0.01))
-    fig.subplots_adjust(left=0.075, right=0.99, bottom=0.35, top=0.88, wspace=0.24)
+    fig.subplots_adjust(left=0.075, right=0.99, bottom=0.43, top=0.88, wspace=0.24)
     save = DATA_DIR / "width_curves.png"
     fig.savefig(save, dpi=180, bbox_inches="tight")
     print(f"saved {save}")

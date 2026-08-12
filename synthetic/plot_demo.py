@@ -364,7 +364,7 @@ def plot_eta_ablation(path, save):
             if j == 0:
                 ax.set_ylabel(f"{bank}\nsamples", fontsize=20)
             if i == len(banks) - 1:
-                ax.set_xlabel("eta", fontsize=20)
+                ax.set_xlabel(r"$\eta$", fontsize=26)
             ax.set_xticks(range(len(etas)), [f"{eta:g}" for eta in etas], rotation=45, ha="right", fontsize=16)
             ax.set_yticks(range(len(horizons)), [str(horizon) for horizon in horizons], fontsize=16)
 
