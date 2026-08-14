@@ -416,7 +416,7 @@ def plot_distribution_geometry_by_bank(save):
     fig, axes = plt.subplots(
         n_rows,
         n_cols,
-        figsize=(3.25 * n_cols, 2.95 * n_rows),
+        figsize=(3.25 * n_cols, 5.0),
         sharex=True,
         sharey=True,
         squeeze=False,
@@ -475,12 +475,12 @@ def plot_distribution_geometry_by_bank(save):
             ax.grid(alpha=0.22)
 
             if row_idx == 0:
-                ax.set_title(bank_name, fontsize=22)
+                ax.set_title(bank_name, fontsize=25)
             if col_idx == 0:
-                ax.set_ylabel(f"{real_name}\nvariance", fontsize=21)
+                ax.set_ylabel(f"{real_name}\nvariance", fontsize=23)
             if row_idx == n_rows - 1:
-                ax.set_xlabel("mean", fontsize=21)
-            ax.tick_params(axis="both", labelsize=17)
+                ax.set_xlabel("mean", fontsize=23, labelpad=-4)
+            ax.tick_params(axis="both", labelsize=19)
 
     real_handle = axes[0, 0].scatter([], [], s=48, marker="o", facecolors="#111111", edgecolors="white", linewidths=0.55)
     sim_handle = axes[0, 0].scatter([], [], s=34, marker="s", color="#2f79b7", edgecolors="none", alpha=0.55)
@@ -491,10 +491,10 @@ def plot_distribution_geometry_by_bank(save):
         loc="lower center",
         ncol=3,
         frameon=False,
-        fontsize=20,
-        bbox_to_anchor=(0.5, 0.015),
+        fontsize=22,
+        bbox_to_anchor=(0.5, 0.005),
     )
-    fig.subplots_adjust(left=0.065, right=0.995, bottom=0.165, top=0.91, hspace=0.08, wspace=0.06)
+    fig.subplots_adjust(left=0.085, right=0.995, bottom=0.235, top=0.88, hspace=0.16, wspace=0.06)
     fig.savefig(save, dpi=180)
     print(f"saved {save}")
 
