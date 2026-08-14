@@ -20,26 +20,20 @@ from method.distributions import BetaSkewed  # noqa: E402
 
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
+INPUT_CSV = DATA_DIR / "2_err.csv"
 CONFIDENCE = 0.95
 NORMALIZATION_BOUNDS = {
-    "err_norm": (0.0, 1.2),
+    # err_lin is a magnitude, so its window starts at 0. err_yaw is signed, so
+    # its window is symmetric and wide enough to hold both tails unclipped.
+    "err_lin": (0.0, 0.45),
+    "err_yaw": (-2.1, 2.1),
 }
 VINCENT_GAPS = (0.05, 0.10, 0.20, 0.30)
-HORIZONS = (5, 10, 20, 30, 38)
+HORIZONS = (5, 10, 20, 30, 100, 300, 900)
 VINCENT_SIMULATORS = {
-    "err_norm": BetaSkewed(2.0, 10.0),
+    "err_lin": BetaSkewed(2.0, 4.0),
+    "err_yaw": BetaSkewed(2.0, 2.0),
 }
-
-
-def find_input_csv():
-    """The measurement drops are timestamped, so take the newest one."""
-    candidates = sorted(DATA_DIR.glob("vel_error_*_err.csv"))
-    if not candidates:
-        raise FileNotFoundError(f"No vel_error_*_err.csv under {DATA_DIR}")
-    return candidates[-1]
-
-
-INPUT_CSV = find_input_csv()
 
 
 def load_synthetic_demo():

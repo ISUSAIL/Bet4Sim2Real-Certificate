@@ -54,17 +54,20 @@ VINCENT_COLORS = {
 
 
 MEASURE_LABELS = {
-    "err_norm": ("Command-tracking error", "certificate width (error norm)"),
+    "err_lin": ("Linear velocity tracking error", "certificate width (m/s)"),
+    "err_yaw": ("Yaw rate tracking error", "certificate width (rad/s)"),
 }
 
 
 PLOT_SCALE = {
-    "err_norm": 1.0,
+    "err_lin": 1.0,
+    "err_yaw": 1.0,
 }
 
 
 Y_TICKS = {
-    "err_norm": [0.02, 0.05, 0.1, 0.2, 0.5, 1.0],
+    "err_lin": [0.02, 0.05, 0.1, 0.2, 0.45],
+    "err_yaw": [0.2, 0.5, 1.0, 2.0, 4.2],
 }
 
 
@@ -229,7 +232,12 @@ def plot_normalized_sequences():
         raw = np.asarray(data[measure], dtype=float)
         normalized = np.clip((raw - lower) / (upper - lower), 0.0, 1.0)
         x = np.arange(1, normalized.size + 1)
-        ax.plot(x, normalized, marker="o", color="#222222", linewidth=1.8)
+        # A ~900-sample rollout turns the ASTM/NIST marker style into a solid
+        # blob, so thin the line and drop the markers once the run is long.
+        if normalized.size > 200:
+            ax.plot(x, normalized, color="#222222", linewidth=0.6, alpha=0.85)
+        else:
+            ax.plot(x, normalized, marker="o", color="#222222", linewidth=1.8)
         ax.set_title(MEASURE_LABELS.get(measure, (measure, ""))[0])
         ax.set_xlabel("samples")
         ax.set_ylim(-0.04, 1.04)
