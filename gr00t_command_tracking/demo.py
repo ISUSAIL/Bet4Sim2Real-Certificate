@@ -20,19 +20,28 @@ from method.distributions import BetaSkewed  # noqa: E402
 
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
-INPUT_CSV = DATA_DIR / "2_err.csv"
+INPUT_CSV = DATA_DIR / "vel_err.csv"
 CONFIDENCE = 0.95
 NORMALIZATION_BOUNDS = {
-    # err_lin is a magnitude, so its window starts at 0. err_yaw is signed, so
-    # its window is symmetric and wide enough to hold both tails unclipped.
-    "err_lin": (0.0, 0.45),
-    "err_yaw": (-2.1, 2.1),
+    # err2 is the weighted sum of per-axis error magnitudes, so it is
+    # non-negative and its window starts at 0. The upper end sits just above the
+    # observed max (1.072) so the right tail stays unclipped.
+    "err2": (0.0, 1.1),
 }
 VINCENT_GAPS = (0.05, 0.10, 0.20, 0.30)
+# Candidate-mean grid used to bracket the certificate endpoints. The shared
+# default in method/e_value.py has 0.02 spacing, which is coarser than the
+# certificates this dataset reaches: when the accepted region falls between two
+# nodes the search returns nothing and the width collapses to the full range.
+# err2 concentrates around 0.153 normalized and its sim2real certificates get
+# down to ~0.005 wide, so even 0.01 spacing loses two of the five banks; 0.002
+# keeps a node inside the region for every bank that has a non-empty one.
+GRID = np.round(np.arange(0.0001, 1.0, 0.002), 3)
 HORIZONS = (5, 10, 20, 30, 100, 300, 900)
 VINCENT_SIMULATORS = {
-    "err_lin": BetaSkewed(2.0, 4.0),
-    "err_yaw": BetaSkewed(2.0, 2.0),
+    # Right-skewed like the data, with mean 2/13 = 0.154 matching the
+    # normalized mean of err2 so the simulator is roughly well specified.
+    "err2": BetaSkewed(2.0, 11.0),
 }
 
 
@@ -116,37 +125,44 @@ def run_methods_for_measure(measure, info, banks, eta_by_bank):
     rows = []
 
     for bank_name, bank in banks.items():
-        refine = bank_name not in ("Sim_35", "Sim_7_biased")
         cert = sim2real.bounds_from_samples(
             samples,
             bank,
+            grid=GRID,
             confidence=CONFIDENCE,
             eta=eta_by_bank[bank_name],
-            refine=refine,
-            kappa=1.0,
+            refine=True,
+            kappa=0.5,
+            tol=1e-5,
         )
         rows.extend(certificate_rows(measure, samples, "sim2real", bank_name, cert, info["scale"]))
 
     baseline_specs = [
         ("e_value_wsr", "none", e_value.bounds_from_samples(
             samples,
+            grid=GRID,
             confidence=CONFIDENCE,
             method="wsr",
-            refine=False,
+            refine=True,
+            tol=1e-5,
         )),
         ("e_value_constant_0.25", "none", e_value.bounds_from_samples(
             samples,
+            grid=GRID,
             confidence=CONFIDENCE,
             method="constant",
             constant_lambdas=(0.25,),
-            refine=False,
+            refine=True,
+            tol=1e-5,
         )),
         ("e_value_constant_0.5", "none", e_value.bounds_from_samples(
             samples,
+            grid=GRID,
             confidence=CONFIDENCE,
             method="constant",
             constant_lambdas=(0.5,),
-            refine=False,
+            refine=True,
+            tol=1e-5,
         )),
         ("hoeffding", "none", concentration.hoeffding_bounds_from_samples(
             samples,

@@ -54,20 +54,18 @@ VINCENT_COLORS = {
 
 
 MEASURE_LABELS = {
-    "err_lin": ("Linear velocity tracking error", "certificate width (m/s)"),
-    "err_yaw": ("Yaw rate tracking error", "certificate width (rad/s)"),
+    # err2 mixes m/s and rad/s terms, so the width carries no single unit.
+    "err2": ("Weighted command tracking error", "certificate width"),
 }
 
 
 PLOT_SCALE = {
-    "err_lin": 1.0,
-    "err_yaw": 1.0,
+    "err2": 1.0,
 }
 
 
 Y_TICKS = {
-    "err_lin": [0.02, 0.05, 0.1, 0.2, 0.45],
-    "err_yaw": [0.2, 0.5, 1.0, 2.0, 4.2],
+    "err2": [0.005, 0.02, 0.05, 0.2, 0.5, 1.1],
 }
 
 
