@@ -21,6 +21,7 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 N_SAMPLES = 200
 N_SEEDS = 100
 CONFIDENCE = 0.95
+BETTING_KAPPA = e_value.DEFAULT_KAPPA
 GLOBAL_BANK_SIZE = 10080
 HORIZONS = (10, 20, 50, 100, 200)
 VINCENT_GAPS = (0.05, 0.10, 0.20, 0.30)
@@ -290,7 +291,15 @@ def vincent_shifted_simulator(distribution, shift=0.12):
 
 def baseline_methods():
     return [
-        ("e_value_wsr", lambda dist, seed: e_value.certificate(dist, seed, N_SAMPLES, confidence=CONFIDENCE, method="wsr", refine=False)),
+        ("e_value_wsr", lambda dist, seed: e_value.certificate(
+            dist,
+            seed,
+            N_SAMPLES,
+            confidence=CONFIDENCE,
+            method="wsr",
+            refine=False,
+            kappa=BETTING_KAPPA,
+        )),
         ("e_value_constant_0.25", lambda dist, seed: e_value.certificate(
             dist,
             seed,
@@ -362,7 +371,7 @@ def run_main_task(task):
             confidence=CONFIDENCE,
             eta=SIM2REAL_ETA_BY_BANK[bank_name],
             refine=True,
-            kappa=1.0,
+            kappa=BETTING_KAPPA,
         )
         rows.append(collect_result(real_set, dist_name, "sim2real", bank_name, cert, true_mean))
 
@@ -374,7 +383,7 @@ def run_main_task(task):
         confidence=CONFIDENCE,
         eta=1.0,
         refine=True,
-        kappa=1.0,
+        kappa=BETTING_KAPPA,
     )
     rows.append(collect_result(real_set, dist_name, "sim2real", "Ideal", ideal_cert, true_mean))
 
@@ -426,7 +435,7 @@ def run_eta_task(task):
                 confidence=CONFIDENCE,
                 eta=eta,
                 refine=False,
-                kappa=1.0,
+                kappa=BETTING_KAPPA,
             )
             row = collect_result(real_set, dist_name, "sim2real", bank_name, cert, true_mean)
             row["eta"] = eta
