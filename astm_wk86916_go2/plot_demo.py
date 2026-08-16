@@ -52,8 +52,8 @@ VINCENT_COLORS = {
 
 
 MEASURE_LABELS = {
-    "pos_error_l2": ("Position error", "certificate width (mm)"),
-    "orientation_error_geodesic": ("Orientation error", "certificate width (rad)"),
+    "pos_error_l2": ("Position error", "certificate width\n(mm)"),
+    "orientation_error_geodesic": ("Orientation error", "certificate width\n(rad)"),
 }
 
 
@@ -167,7 +167,7 @@ def plot_width_curves():
     rows = read_csv(DATA_DIR / "certificate_widths.csv")
     order = method_order(rows)
     measures = list(dict.fromkeys(row["measure"] for row in rows))
-    fig, axes = plt.subplots(1, len(measures), figsize=(7.2 * len(measures), 4.0), sharey=False)
+    fig, axes = plt.subplots(1, len(measures), figsize=(7.2 * len(measures), 3.2), sharey=False)
     if len(measures) == 1:
         axes = [axes]
 
@@ -188,9 +188,10 @@ def plot_width_curves():
             line, = ax.plot(x[idx], y[idx], marker="o", markersize=3.5, label=label(method, bank), **style_for(method, bank))
             legend_entries.setdefault((method, bank), (line, label(method, bank)))
         title, y_label = MEASURE_LABELS.get(measure, (measure, "certificate width"))
-        ax.set_title(title)
-        ax.set_xlabel("samples")
-        ax.set_ylabel(y_label, labelpad=10)
+        ax.set_title(title, fontsize=20)
+        ax.set_xlabel("samples", fontsize=18)
+        ax.set_ylabel(y_label, fontsize=18, labelpad=10)
+        ax.tick_params(axis="both", labelsize=15)
         ax.set_yscale("log")
         if plotted_widths:
             ymin = min(plotted_widths)
@@ -204,7 +205,7 @@ def plot_width_curves():
 
     handles, labels = zip(*[legend_entries[key] for key in order if key in legend_entries])
     fig.legend(handles, labels, loc="lower center", ncol=5, frameon=False, bbox_to_anchor=(0.5, 0.01))
-    fig.subplots_adjust(left=0.075, right=0.99, bottom=0.43, top=0.88, wspace=0.24)
+    fig.subplots_adjust(left=0.075, right=0.99, bottom=0.52, top=0.88, wspace=0.30)
     save = DATA_DIR / "width_curves.png"
     fig.savefig(save, dpi=180, bbox_inches="tight")
     print(f"saved {save}")

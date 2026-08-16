@@ -108,6 +108,18 @@ def label(method, bank):
     return LABELS.get(method, method)
 
 
+def compact_group_label(method, bank):
+    if method == "sim2real":
+        return "ideal Kelly" if bank == "Ideal" else bank
+    if method == "vincent":
+        return "ideal" if bank == "Ideal" else f"gap {bank.split('_')[-1]}"
+    if method == "e_value_wsr":
+        return "WSR"
+    if method.startswith("e_value_constant_"):
+        return rf"$\lambda_t={method.rsplit('_', 1)[-1]}$"
+    return label(method, bank)
+
+
 def method_order(rows):
     sim_banks = sorted(
         {r["bank"] for r in rows if r["method"] == "sim2real" and r["bank"] != "Ideal"},
@@ -199,7 +211,7 @@ def plot_width_curves(path, save):
     rows = read_csv(path)
     order = method_order(rows)
     real_sets = real_set_order(rows)
-    fig, axes_grid = plt.subplots(2, 2, figsize=(12.2, 8.0), sharey=False)
+    fig, axes_grid = plt.subplots(2, 2, figsize=(12.2, 5.6), sharey=False)
     axes = axes_grid.ravel()
     legend_ax = axes[-1]
     legend_ax.axis("off")
@@ -227,8 +239,9 @@ def plot_width_curves(path, save):
             line_label = label(method, bank)
             legend_entries.setdefault((method, bank), (line, line_label))
 
-        ax.set_title(real_set)
-        ax.set_xlabel("samples")
+        ax.set_title(real_set, fontsize=20)
+        ax.set_xlabel("samples", fontsize=18)
+        ax.tick_params(axis="both", labelsize=15)
         ax.set_yscale("log")
         if plotted_widths:
             ymin = min(plotted_widths)
@@ -236,42 +249,45 @@ def plot_width_curves(path, save):
             ax.set_ylim(ymin / 1.18, ymax * 1.18)
         ax.grid(alpha=0.25)
 
-    axes[0].set_ylabel("mean certificate width")
-    axes[2].set_ylabel("mean certificate width")
+    axes[0].set_ylabel("mean certificate width", fontsize=18)
+    axes[2].set_ylabel("mean certificate width", fontsize=18)
     groups = [
-        ("Proposed", [(method, bank) for method, bank in order if method == "sim2real"], (0.02, 0.98)),
-        ("e-values", [(method, bank) for method, bank in order if method.startswith("e_value")], (0.52, 0.98)),
+        ("Proposed", [(method, bank) for method, bank in order if method == "sim2real"], (0.02, 0.99), 3),
+        ("Vincent et al.", [(method, bank) for method, bank in order if method == "vincent"], (0.02, 0.66), 3),
+        ("e-values", [(method, bank) for method, bank in order if method.startswith("e_value")], (0.02, 0.33), 1),
         ("Concentration", [(method, bank) for method, bank in order if method in (
             "hoeffding",
             "empirical_bernstein",
-        )], (0.52, 0.62)),
+        )], (0.34, 0.33), 1),
         ("p-values", [(method, bank) for method, bank in order if method in (
             "t_test",
             "z_test",
             "sequential_t_test",
-        )], (0.52, 0.40)),
-        ("Vincent et al.", [(method, bank) for method, bank in order if method == "vincent"], (0.02, 0.38)),
+        )], (0.70, 0.33), 1),
     ]
-    for title, keys, anchor in groups:
+    for title, keys, anchor, ncol in groups:
         entries = [legend_entries[key] for key in keys if key in legend_entries]
         if not entries:
             continue
-        group_handles, group_labels = zip(*entries)
-        legend_ax.text(anchor[0], anchor[1], title, transform=legend_ax.transAxes, fontsize=15, fontweight="bold", va="top")
+        group_handles = [entry[0] for entry in entries]
+        group_labels = [compact_group_label(*key) for key in keys if key in legend_entries]
+        legend_ax.text(anchor[0], anchor[1], title, transform=legend_ax.transAxes, fontsize=16, fontweight="bold", va="top")
         legend = legend_ax.legend(
             group_handles,
             group_labels,
             frameon=False,
-            fontsize=12,
+            fontsize=13,
             loc="upper left",
             bbox_to_anchor=(anchor[0], anchor[1] - 0.06),
             bbox_transform=legend_ax.transAxes,
-            handlelength=2.5,
-            labelspacing=0.55,
+            ncol=ncol,
+            handlelength=1.5,
+            columnspacing=0.4,
+            labelspacing=0.2,
             borderaxespad=0.0,
         )
         legend_ax.add_artist(legend)
-    fig.tight_layout()
+    fig.subplots_adjust(left=0.075, right=0.99, bottom=0.10, top=0.92, hspace=0.50, wspace=0.13)
     fig.savefig(save, dpi=180)
     print(f"saved {save}")
 

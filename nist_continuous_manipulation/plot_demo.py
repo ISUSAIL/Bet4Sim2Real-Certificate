@@ -52,7 +52,7 @@ VINCENT_COLORS = {
 
 
 MEASURE_LABELS = {
-    "Interception_Rate": ("Interception rate", "certificate width (percentage points)"),
+    "Interception_Rate": ("Interception rate", "certificate width\n(percentage points)"),
     "Search_Time": ("Search time", "certificate width (s)"),
     "distance": ("Distance error", "certificate width (mm)"),
 }
@@ -170,7 +170,7 @@ def plot_width_curves():
     rows = read_csv(DATA_DIR / "certificate_widths.csv")
     order = method_order(rows)
     measures = list(dict.fromkeys(row["measure"] for row in rows))
-    fig, axes = plt.subplots(1, len(measures), figsize=(7.2 * len(measures), 5.8), sharey=False)
+    fig, axes = plt.subplots(1, len(measures), figsize=(7.2 * len(measures), 4.0), sharey=False)
     if len(measures) == 1:
         axes = [axes]
 
@@ -198,9 +198,10 @@ def plot_width_curves():
             )
             legend_entries.setdefault((method, bank), (line, label(method, bank)))
         title, y_label = MEASURE_LABELS.get(measure, (measure, "certificate width"))
-        ax.set_title(title)
-        ax.set_xlabel("samples")
-        ax.set_ylabel(y_label, labelpad=10)
+        ax.set_title(title, fontsize=20)
+        ax.set_xlabel("samples", fontsize=18)
+        ax.set_ylabel(y_label, fontsize=18, labelpad=10)
+        ax.tick_params(axis="both", labelsize=15)
         ax.set_yscale("log")
         if plotted_widths:
             ymin = min(plotted_widths)
@@ -214,7 +215,7 @@ def plot_width_curves():
 
     handles, labels = zip(*[legend_entries[key] for key in order if key in legend_entries])
     fig.legend(handles, labels, loc="lower center", ncol=5, frameon=False, bbox_to_anchor=(0.5, 0.01))
-    fig.subplots_adjust(left=0.06, right=0.995, bottom=0.35, top=0.88, wspace=0.27)
+    fig.subplots_adjust(left=0.06, right=0.995, bottom=0.41, top=0.89, wspace=0.14)
     save = DATA_DIR / "width_curves.png"
     fig.savefig(save, dpi=180, bbox_inches="tight")
     print(f"saved {save}")

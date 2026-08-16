@@ -2,6 +2,7 @@ import numpy as np
 
 
 DEFAULT_GRID = np.round(np.arange(0.02, 1.0, 0.02), 2)
+DEFAULT_KAPPA = 1.0
 DEFAULT_CONSTANT_LAMBDAS = (0.25, 0.5, 0.75, 1.0)
 
 
@@ -35,7 +36,7 @@ def running_moments(samples, initial_mean=0.5, initial_variance=0.25, variance_f
     return means, variances
 
 
-def log_wealth_grid(samples, grid=DEFAULT_GRID, means=None, variances=None, kappa=0.5):
+def log_wealth_grid(samples, grid=DEFAULT_GRID, means=None, variances=None, kappa=DEFAULT_KAPPA):
     """Compute log e-process wealth for each candidate mean in the grid."""
     samples = np.asarray(samples, dtype=float).ravel()
     grid = np.asarray(grid, dtype=float).ravel()
@@ -77,7 +78,7 @@ def constant_log_wealth_grid(samples, grid=DEFAULT_GRID, lambdas=DEFAULT_CONSTAN
 
 
 def confidence_sequence_from_log_wealth(grid, log_wealth, alpha=0.05):
-    """Return grid-based anytime confidence intervals from e-process wealth."""
+    """Return nested grid-based confidence intervals from e-process wealth."""
     grid = np.asarray(grid, dtype=float).ravel()
     log_wealth = np.asarray(log_wealth, dtype=float)
     threshold = np.log(1.0 / alpha)
@@ -88,8 +89,9 @@ def confidence_sequence_from_log_wealth(grid, log_wealth, alpha=0.05):
     lower = np.zeros(log_wealth.shape[1], dtype=float)
     upper = np.ones(log_wealth.shape[1], dtype=float)
 
+    running_max_log_wealth = np.maximum.accumulate(log_wealth, axis=1)
     for t in range(log_wealth.shape[1]):
-        accepted = np.flatnonzero(log_wealth[:, t] < threshold)
+        accepted = np.flatnonzero(running_max_log_wealth[:, t] < threshold)
         if accepted.size == 0:
             continue
         if accepted[0] > 0:
@@ -114,8 +116,9 @@ def refined_confidence_sequence_from_log_wealth(
     threshold = np.log(1.0 / alpha)
     lower, upper = confidence_sequence_from_log_wealth(grid, log_wealth, alpha)
 
+    running_max_log_wealth = np.maximum.accumulate(log_wealth, axis=1)
     accepted_by_time = [
-        np.flatnonzero(log_wealth[:, time_index] < threshold)
+        np.flatnonzero(running_max_log_wealth[:, time_index] < threshold)
         for time_index in range(log_wealth.shape[1])
     ]
 
@@ -152,7 +155,9 @@ def refined_confidence_sequence_from_log_wealth(
 
         for _ in range(max_iter):
             mids = 0.5 * (a_values + b_values)
-            mid_log_wealth = log_wealth_fn(mids)[np.arange(mids.size), times]
+            candidate_log_wealth = log_wealth_fn(mids)
+            observed = np.arange(candidate_log_wealth.shape[1])[None, :] <= times[:, None]
+            mid_log_wealth = np.max(np.where(observed, candidate_log_wealth, -np.inf), axis=1)
             rejected = mid_log_wealth >= threshold
 
             if side == "lower":
@@ -186,7 +191,7 @@ def bounds_from_samples(
     grid=DEFAULT_GRID,
     confidence=0.95,
     method="wsr",
-    kappa=0.5,
+    kappa=DEFAULT_KAPPA,
     constant_lambdas=DEFAULT_CONSTANT_LAMBDAS,
     refine=True,
     tol=1e-3,
@@ -227,7 +232,7 @@ def certificate(
     confidence=0.95,
     grid=DEFAULT_GRID,
     method="wsr",
-    kappa=0.5,
+    kappa=DEFAULT_KAPPA,
     constant_lambdas=DEFAULT_CONSTANT_LAMBDAS,
     refine=True,
     tol=1e-3,

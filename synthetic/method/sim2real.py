@@ -2,8 +2,10 @@ import numpy as np
 
 try:
     from .e_value import DEFAULT_GRID
+    from .e_value import DEFAULT_KAPPA
 except ImportError:
     from e_value import DEFAULT_GRID
+    from e_value import DEFAULT_KAPPA
 
 
 _SIMULATOR_MOMENT_CACHE = {}
@@ -83,7 +85,7 @@ def grid_wealth(samples, grid, means, variances, kappa):
 
 
 def _wealth_diag(candidates, samples, means, variances, kappa):
-    """Log wealth of candidate c[n] evaluated at time n, vectorized."""
+    """Maximum log wealth of candidate c[n] through time n, vectorized."""
     samples = np.asarray(samples, dtype=float).ravel()
     candidates = np.asarray(candidates, dtype=float).ravel()
     times = samples.size
@@ -91,8 +93,9 @@ def _wealth_diag(candidates, samples, means, variances, kappa):
     edge = means[None, :] - grid
     stakes = truncate(kappa * edge / (variances[None, :] + edge**2), grid)
     log_factors = np.log(np.maximum(1.0 + stakes * (samples[None, :] - grid), 1e-12))
-    mask = np.tril(np.ones((times, times), dtype=bool))
-    return np.where(mask, log_factors, 0.0).sum(axis=1)
+    cumulative_log_wealth = np.cumsum(log_factors, axis=1)
+    observed = np.tril(np.ones((times, times), dtype=bool))
+    return np.max(np.where(observed, cumulative_log_wealth, -np.inf), axis=1)
 
 
 def confidence_sequence(grid, log_wealth, samples, means, variances, kappa, alpha=0.05, tol=1e-3, max_iter=10):
@@ -112,8 +115,9 @@ def confidence_sequence(grid, log_wealth, samples, means, variances, kappa, alph
     upper_b = np.zeros(times, dtype=float)
     refine_upper = np.zeros(times, dtype=bool)
 
+    running_max_log_wealth = np.maximum.accumulate(log_wealth, axis=1)
     for time_index in range(times):
-        column = log_wealth[:, time_index]
+        column = running_max_log_wealth[:, time_index]
         accepted = np.flatnonzero(column < threshold)
         if accepted.size == 0:
             continue
@@ -171,7 +175,7 @@ def bounds_from_samples(
     grid=DEFAULT_GRID,
     confidence=0.95,
     eta=5.0,
-    kappa=1.0,
+    kappa=DEFAULT_KAPPA,
     refine=True,
     tol=1e-3,
 ):
@@ -226,7 +230,7 @@ def certificate(
     grid=DEFAULT_GRID,
     confidence=0.95,
     eta=5.0,
-    kappa=1.0,
+    kappa=DEFAULT_KAPPA,
     refine=True,
     tol=1e-3,
 ):
