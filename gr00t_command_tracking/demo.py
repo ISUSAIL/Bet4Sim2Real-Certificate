@@ -20,7 +20,7 @@ from method.distributions import BetaSkewed  # noqa: E402
 
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
-INPUT_CSV = DATA_DIR / "vel_err.csv"
+INPUT_CSV = DATA_DIR / "vel_error.csv"
 CONFIDENCE = 0.95
 NORMALIZATION_BOUNDS = {
     # err2 is the weighted sum of per-axis error magnitudes, so it is
@@ -37,7 +37,7 @@ VINCENT_GAPS = (0.05, 0.10, 0.20, 0.30)
 # down to ~0.005 wide, so even 0.01 spacing loses two of the five banks; 0.002
 # keeps a node inside the region for every bank that has a non-empty one.
 GRID = np.round(np.arange(0.0001, 1.0, 0.002), 3)
-HORIZONS = (5, 10, 20, 30, 100, 300, 900)
+HORIZONS = (5, 10, 20, 30, 100, 300, 600)
 VINCENT_SIMULATORS = {
     # Right-skewed like the data, with mean 2/13 = 0.154 matching the
     # normalized mean of err2 so the simulator is roughly well specified.
@@ -132,7 +132,6 @@ def run_methods_for_measure(measure, info, banks, eta_by_bank):
             confidence=CONFIDENCE,
             eta=eta_by_bank[bank_name],
             refine=True,
-            kappa=0.5,
             tol=1e-5,
         )
         rows.extend(certificate_rows(measure, samples, "sim2real", bank_name, cert, info["scale"]))
