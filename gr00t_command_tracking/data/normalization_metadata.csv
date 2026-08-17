@@ -1,2 +1,4 @@
-measure,normalization_lower,normalization_upper,raw_min,raw_max,raw_mean,normalized_mean,n_samples
-err2,0.0,1.1,0.000671,1.072413,0.16702827101449275,0.15184388274044794,690
+source,measure,column,normalization_lower,normalization_upper,raw_min,raw_max,raw_mean,normalized_mean,n_samples
+real,err2,err2,0.0,1.1,0.000671,1.072413,0.16702827101449275,0.15184388274044794,690
+sim_pair,err2,err_weighted,0.0,1.1,0.028395,0.573079,0.17079572463768114,0.1552688405797101,690
+sim_aug,err2,err_weighted,0.0,1.1,0.002727,0.487691,0.15967383768115942,0.14515803425559948,690

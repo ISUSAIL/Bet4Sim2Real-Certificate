@@ -8,7 +8,7 @@ from matplotlib.ticker import FixedLocator
 from matplotlib.ticker import FuncFormatter
 from matplotlib.ticker import NullFormatter
 
-from demo import INPUT_CSV
+from demo import SEQUENCES
 
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
@@ -51,6 +51,10 @@ VINCENT_COLORS = {
     0.20: "#dd3497",
     0.30: "#f768a1",
 }
+
+# Kept clear of the blue (proposed), orange (e-value), green (concentration),
+# grey (p-value) and magenta (Vincent) families already in use.
+SURESIM_COLOR = "#b2182b"
 
 
 MEASURE_LABELS = {
@@ -97,6 +101,9 @@ def method_order(rows):
         ("z_test", "none"),
         ("sequential_t_test", "none"),
     ])
+    order.extend(
+        sorted({("suresim", r["bank"]) for r in rows if r["method"] == "suresim"})
+    )
     vincent = sorted(
         {r["bank"] for r in rows if r["method"] == "vincent"},
         key=lambda name: float(name.split("_")[-1]),
@@ -124,6 +131,8 @@ def label(method, bank):
         return "z-test"
     if method == "sequential_t_test":
         return "sequential t-test"
+    if method == "suresim":
+        return "SureSim (PPI)"
     if method == "vincent":
         return f"Vincent et al. (gap {bank.split('_')[-1]})"
     return method
@@ -153,6 +162,8 @@ def style_for(method, bank):
     if method in ("t_test", "z_test", "sequential_t_test"):
         styles = {"t_test": ":", "z_test": "-.", "sequential_t_test": "--"}
         return {"color": PVALUE_COLORS[method], "linewidth": 1.9, "alpha": 0.86, "linestyle": styles[method]}
+    if method == "suresim":
+        return {"color": SURESIM_COLOR, "linewidth": 2.2, "alpha": 0.9}
     if method == "vincent":
         return {
             "color": VINCENT_COLORS.get(float(bank.split("_")[-1]), "#b45a4a"),
@@ -219,15 +230,16 @@ def plot_width_curves():
 
 
 def plot_normalized_sequences():
-    metadata = {row["measure"]: row for row in read_csv(DATA_DIR / "normalization_metadata.csv")}
-    data = np.genfromtxt(INPUT_CSV, delimiter=",", names=True)
+    metadata = read_csv(DATA_DIR / "normalization_metadata.csv")
     fig, axes = plt.subplots(1, len(metadata), figsize=(6.2 * len(metadata), 3.7), sharey=True)
     if len(metadata) == 1:
         axes = [axes]
-    for ax, measure in zip(axes, metadata):
-        lower = float(metadata[measure]["normalization_lower"])
-        upper = float(metadata[measure]["normalization_upper"])
-        raw = np.asarray(data[measure], dtype=float)
+    for ax, meta in zip(axes, metadata):
+        source, measure = meta["source"], meta["measure"]
+        path, column, _ = SEQUENCES[source]
+        lower = float(meta["normalization_lower"])
+        upper = float(meta["normalization_upper"])
+        raw = np.asarray(np.genfromtxt(path, delimiter=",", names=True)[column], dtype=float)
         normalized = np.clip((raw - lower) / (upper - lower), 0.0, 1.0)
         x = np.arange(1, normalized.size + 1)
         # A ~900-sample rollout turns the ASTM/NIST marker style into a solid
@@ -236,7 +248,7 @@ def plot_normalized_sequences():
             ax.plot(x, normalized, color="#222222", linewidth=0.6, alpha=0.85)
         else:
             ax.plot(x, normalized, marker="o", color="#222222", linewidth=1.8)
-        ax.set_title(MEASURE_LABELS.get(measure, (measure, ""))[0])
+        ax.set_title(f"{MEASURE_LABELS.get(measure, (measure, ''))[0]} ({source})")
         ax.set_xlabel("samples")
         ax.set_ylim(-0.04, 1.04)
         ax.grid(alpha=0.25)
