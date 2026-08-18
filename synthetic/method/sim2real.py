@@ -42,16 +42,31 @@ def simulator_moments(simulators):
     return result
 
 
-def simulator_bank_mixture_moments(samples, simulators, eta=5.0):
+def simulator_moments_from_pairs(simulators):
+    """Extract mean and variance when simulators are already (mean, variance) pairs.
+
+    Used for banks built from empirical statistics (e.g. mujoco rollouts)
+    rather than distribution objects exposing true_mean()/true_variance().
+    """
+    means = np.array([mean for mean, _ in simulators], dtype=float)
+    variances = np.array([variance for _, variance in simulators], dtype=float)
+    return means, np.maximum(variances, 1e-8)
+
+
+def simulator_bank_mixture_moments(samples, simulators, eta=5.0, moments_fn=simulator_moments):
     """Predictable moments from an online mixture over simulator distributions.
 
     At each real sample, simulator weights are computed before observing that
     sample. Afterward, each simulator is scored by a Gaussian likelihood using
     its known synthetic mean and variance. This is the proposed sim-to-real
     replacement for the raw WSR data-driven moments.
+
+    `moments_fn` extracts (means, variances) from `simulators`; swap it for
+    `simulator_moments_from_pairs` when the bank is already given as
+    (mean, variance) pairs instead of distribution objects.
     """
     samples = np.asarray(samples, dtype=float).ravel()
-    sim_means, sim_variances = simulator_moments(simulators)
+    sim_means, sim_variances = moments_fn(simulators)
     log_weights = np.zeros(len(simulators), dtype=float)
     mixture_means = np.empty(samples.size, dtype=float)
     mixture_variances = np.empty(samples.size, dtype=float)
@@ -221,6 +236,63 @@ def bounds_from_samples(
         )
     return np.column_stack((lower, upper))
 
+def bounds_from_samples_mujoco(
+    samples,
+    simulators,
+    grid=DEFAULT_GRID,
+    confidence=0.95,
+    eta=5.0,
+    kappa=DEFAULT_KAPPA,
+    refine=True,
+    tol=1e-3,
+):
+    """Sim-to-real certificate for a bank given as (mean, variance) pairs.
+
+    Same betting construction as `bounds_from_samples`, but the simulators are
+    mujoco rollout statistics rather than distribution objects, so the moments
+    are read straight off the pairs instead of calling true_mean()/true_variance().
+    """
+    if not 0.0 < confidence < 1.0:
+        raise ValueError("confidence must be in (0, 1)")
+    alpha = 1.0 - confidence
+    samples = np.asarray(samples, dtype=float).ravel()
+    means, variances = simulator_bank_mixture_moments(
+        samples=samples,
+        simulators=simulators,
+        eta=eta,
+        moments_fn=simulator_moments_from_pairs,
+    )
+    log_wealth = grid_wealth(
+        samples=samples,
+        grid=grid,
+        means=means,
+        variances=variances,
+        kappa=kappa,
+    )
+    if refine:
+        lower, upper = confidence_sequence(
+            grid,
+            log_wealth,
+            samples=samples,
+            means=means,
+            variances=variances,
+            kappa=kappa,
+            alpha=alpha,
+            tol=tol,
+        )
+    else:
+        lower, upper = confidence_sequence(
+            grid,
+            log_wealth,
+            samples=samples,
+            means=means,
+            variances=variances,
+            kappa=kappa,
+            alpha=alpha,
+            tol=0.0,
+            max_iter=0,
+        )
+    return np.column_stack((lower, upper))
 
 def certificate(
     real_distribution,
