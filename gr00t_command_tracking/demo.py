@@ -34,9 +34,10 @@ suresim = load_module_from_path("gr00t_suresim", Path(__file__).resolve().parent
 
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
+SIM_DIR = DATA_DIR / "Simulators" / "2"
 INPUT_CSV = DATA_DIR / "vel_error_real.csv"
-SIM_pair_CSV = DATA_DIR / "paired_sim_5.csv"
-SIM_aug_CSV = DATA_DIR / "aug_sim_5.csv"
+SIM_pair_CSV = SIM_DIR / "vel_error_paired_sim.csv"
+SIM_aug_CSV = SIM_DIR / "vel_error_all_err.csv"
 # (csv, column, measure) per source. The paired sim rollout carries the same
 # weighted error under a different column name, so it shares the err2
 # normalization window and stays directly comparable to the real sequence.
@@ -46,6 +47,10 @@ SEQUENCES = {
     "sim_pair": (SIM_pair_CSV, "err_weighted", "err2"),
     "sim_aug": (SIM_aug_CSV, "err_weighted", "err2"),
 }
+SIM_BANK_DIR = DATA_DIR / "Simulators"
+SIM_BANK_SEQUENCE = ("vel_error_paired_sim.csv", "err_weighted", "err2")
+MUJOCO_BANK = "Sim_3_mujoco"
+MUJOCO_ETA = 5.0
 CONFIDENCE = 0.95
 NORMALIZATION_BOUNDS = {
     # err2 is the weighted sum of per-axis error magnitudes, so it is
@@ -151,6 +156,23 @@ def read_robot_data():
     return rows, sim_rows, metadata
 
 
+def read_mujoco_bank():
+    """One (mean, variance) pair per Simulators/<k> folder, keyed by measure."""
+    filename, column, measure = SIM_BANK_SEQUENCE
+    bank = {}
+    metadata = []
+    for sim_dir in sorted(path for path in SIM_BANK_DIR.iterdir() if path.is_dir()):
+        info, meta = normalize_series(
+            sim_dir / filename, column, measure, f"sim_bank_{sim_dir.name}"
+        )
+        metadata.append(meta)
+        normalized = info["normalized"]
+        bank.setdefault(measure, []).append(
+            (float(np.mean(normalized)), float(np.var(normalized)))
+        )
+    return bank, metadata
+
+
 def certificate_rows(measure, samples, method, bank, certificate, scale):
     widths = np.nan_to_num(certificate[:, 1] - certificate[:, 0], nan=1.0, posinf=1.0)
     means = np.cumsum(samples) / np.arange(1, samples.size + 1)
@@ -198,7 +220,7 @@ def suresim_certificate(y_gold, y_gold_sim, y_sim):
     return np.clip(certificate, 0.0, 1.0)
 
 
-def run_methods_for_measure(measure, info, sim_info, banks, eta_by_bank):
+def run_methods_for_measure(measure, info, sim_info, banks, eta_by_bank, mujoco_bank):
     samples = info["normalized"]
     n_samples = samples.size
     rows = []
@@ -214,6 +236,18 @@ def run_methods_for_measure(measure, info, sim_info, banks, eta_by_bank):
             tol=1e-5,
         )
         rows.extend(certificate_rows(measure, samples, "sim2real", bank_name, cert, info["scale"]))
+
+    if mujoco_bank:
+        cert = sim2real.bounds_from_samples_mujoco(
+            samples,
+            mujoco_bank,
+            grid=GRID,
+            confidence=CONFIDENCE,
+            eta=MUJOCO_ETA,
+            refine=True,
+            tol=1e-5,
+        )
+        rows.extend(certificate_rows(measure, samples, "sim2real", MUJOCO_BANK, cert, info["scale"]))
 
     baseline_specs = [
         ("e_value_wsr", "none", e_value.bounds_from_samples(
@@ -342,10 +376,19 @@ def main():
     eta_by_bank = synthetic_demo.SIM2REAL_ETA_BY_BANK
 
     data, sim_data, metadata = read_robot_data()
+    mujoco_bank, bank_metadata = read_mujoco_bank()
+    metadata.extend(bank_metadata)
     rows = []
     for measure, info in data.items():
         rows.extend(
-            run_methods_for_measure(measure, info, sim_data.get(measure, {}), banks, eta_by_bank)
+            run_methods_for_measure(
+                measure,
+                info,
+                sim_data.get(measure, {}),
+                banks,
+                eta_by_bank,
+                mujoco_bank.get(measure, []),
+            )
         )
 
     write_csv(DATA_DIR / "normalization_metadata.csv", metadata)

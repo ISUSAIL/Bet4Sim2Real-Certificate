@@ -32,6 +32,7 @@ SIM2REAL_COLORS = {
     "Sim_756": "#083d77",
     "Sim_10080": "#002f6c",
     "Sim_7_biased": "#b8d5ea",
+    "Sim_3_mujoco": "#00a0c6",
 }
 
 CONCENTRATION_COLORS = {
@@ -88,6 +89,17 @@ def bank_sort_key(name):
     return (name.endswith("_biased"), int(name.split("_")[1]))
 
 
+# Vertical gap (figure fraction) left between the legend and the x-axis label.
+LEGEND_GAP = 0.00
+
+# Curves that stay in certificate_widths.csv but are left off the width figure.
+EXCLUDED_CURVES = {
+    ("e_value_constant_0.25", "none"),
+    ("vincent", "gap_0.1"),
+    ("vincent", "gap_0.2"),
+}
+
+
 def method_order(rows):
     sim_banks = sorted({r["bank"] for r in rows if r["method"] == "sim2real"}, key=bank_sort_key)
     order = [("sim2real", bank) for bank in sim_banks]
@@ -109,11 +121,13 @@ def method_order(rows):
         key=lambda name: float(name.split("_")[-1]),
     )
     order.extend([("vincent", bank) for bank in vincent])
-    return order
+    return [entry for entry in order if entry not in EXCLUDED_CURVES]
 
 
 def label(method, bank):
     if method == "sim2real":
+        if bank == "Sim_3_mujoco":
+            return "Proposed (Sim_MuJoCo_3)"
         return f"Proposed ({bank})"
     if method == "e_value_wsr":
         return "e-value (WSR)"
@@ -132,7 +146,7 @@ def label(method, bank):
     if method == "sequential_t_test":
         return "sequential t-test"
     if method == "suresim":
-        return "SureSim (PPI)"
+        return "SureSim"
     if method == "vincent":
         return f"Vincent et al. (gap {bank.split('_')[-1]})"
     return method
@@ -163,7 +177,7 @@ def style_for(method, bank):
         styles = {"t_test": ":", "z_test": "-.", "sequential_t_test": "--"}
         return {"color": PVALUE_COLORS[method], "linewidth": 1.9, "alpha": 0.86, "linestyle": styles[method]}
     if method == "suresim":
-        return {"color": SURESIM_COLOR, "linewidth": 2.2, "alpha": 0.9}
+        return {"color": SURESIM_COLOR, "linewidth": 2.1, "alpha": 0.95}
     if method == "vincent":
         return {
             "color": VINCENT_COLORS.get(float(bank.split("_")[-1]), "#b45a4a"),
@@ -178,7 +192,7 @@ def plot_width_curves():
     rows = read_csv(DATA_DIR / "certificate_widths.csv")
     order = method_order(rows)
     measures = list(dict.fromkeys(row["measure"] for row in rows))
-    fig, axes = plt.subplots(1, len(measures), figsize=(7.6 * len(measures), 5.8), sharey=False)
+    fig, axes = plt.subplots(1, len(measures), figsize=(7.2 * len(measures), 3.2), sharey=False)
     if len(measures) == 1:
         axes = [axes]
 
@@ -199,15 +213,13 @@ def plot_width_curves():
             line, = ax.plot(
                 x[idx],
                 y[idx],
-                marker="o",
-                markersize=3.5,
                 label=label(method, bank),
                 **style_for(method, bank),
             )
             legend_entries.setdefault((method, bank), (line, label(method, bank)))
         title, y_label = MEASURE_LABELS.get(measure, (measure, "certificate width"))
         ax.set_title(title)
-        ax.set_xlabel("samples")
+        ax.set_xlabel("samples", labelpad=-7)
         ax.set_ylabel(y_label, labelpad=10)
         ax.set_yscale("log")
         if plotted_widths:
@@ -222,7 +234,7 @@ def plot_width_curves():
 
     handles, labels = zip(*[legend_entries[key] for key in order if key in legend_entries])
     ncol = 3 if len(measures) == 1 else 5
-    fig.legend(handles, labels, loc="lower center", ncol=ncol, frameon=False, bbox_to_anchor=(0.5, 0.01))
+    leg = fig.legend(handles, labels, loc="lower center", ncol=ncol, frameon=False, bbox_to_anchor=(0.5, -0.08))
     fig.subplots_adjust(left=0.11, right=0.99, bottom=0.42, top=0.93, wspace=0.27)
     save = DATA_DIR / "width_curves.png"
     fig.savefig(save, dpi=180, bbox_inches="tight")
@@ -230,7 +242,14 @@ def plot_width_curves():
 
 
 def plot_normalized_sequences():
-    metadata = read_csv(DATA_DIR / "normalization_metadata.csv")
+    # The metadata CSV also records the mujoco bank rollouts, which are only
+    # summarized to moments and have no entry in SEQUENCES to resolve a path
+    # from. This panel is about the certified and paired sequences, so skip them.
+    metadata = [
+        meta
+        for meta in read_csv(DATA_DIR / "normalization_metadata.csv")
+        if meta["source"] in SEQUENCES
+    ]
     fig, axes = plt.subplots(1, len(metadata), figsize=(6.2 * len(metadata), 3.7), sharey=True)
     if len(metadata) == 1:
         axes = [axes]
@@ -249,7 +268,7 @@ def plot_normalized_sequences():
         else:
             ax.plot(x, normalized, marker="o", color="#222222", linewidth=1.8)
         ax.set_title(f"{MEASURE_LABELS.get(measure, (measure, ''))[0]} ({source})")
-        ax.set_xlabel("samples")
+        ax.set_xlabel("samples", labelpad=2)
         ax.set_ylim(-0.04, 1.04)
         ax.grid(alpha=0.25)
     axes[0].set_ylabel("normalized measure")
