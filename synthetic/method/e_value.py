@@ -108,7 +108,7 @@ def refined_confidence_sequence_from_log_wealth(
     log_wealth_fn,
     alpha=0.05,
     tol=1e-3,
-    max_iter=12,
+    max_iter=10,
 ):
     """Refine grid-bracketed confidence bounds by batched bisection."""
     grid = np.asarray(grid, dtype=float).ravel()
