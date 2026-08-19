@@ -145,7 +145,7 @@ def mean_ci_eff_corrected_membership_accelerated(
 
 ###################################################################
 # Prediction powered confidence interval
-def ppi_uniform(Y_gold, Y_gold_sim, Y_sim, alpha=0.05, c=0.05):
+def ppi_uniform(Y_gold, Y_gold_sim, Y_sim, alpha=0.05, c=0.95):
     """
     Y_gold_sim is sampled from Y_sim.
     """

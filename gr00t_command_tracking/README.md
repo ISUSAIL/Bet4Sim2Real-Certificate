@@ -1,7 +1,5 @@
 # GR00T Command Tracking — Unitree G1
 
-This one is unfinished, we need details on suresim implementation
-
 This folder certifies the command-following accuracy of a Unitree G1 humanoid
 running the GR00T locomotion controller under joystick commands (category **C2**
 in the paper). Unlike the ASTM and NIST replays, a matched simulator exists here:
@@ -18,7 +16,7 @@ Both rollouts are the same command sequence, shown at 8x speed.
 
 ### Measure
 
-`err2` — the weighted sum of per-axis velocity tracking error magnitudes, one
+`err_weighted` — the weighted sum of per-axis velocity tracking error magnitudes, one
 sample per control step. Non-negative, normalized to `[0, 1.1]`. Reported widths 
 are converted back to the original units.
 
@@ -45,7 +43,7 @@ Everything is written to `data/`:
 
 | file | rows | role |
 | --- | --- | --- |
-| `data/vel_error_real.csv` | 690 | the real rollout, column `err2` — the only sequence certified |
+| `data/vel_error_real.csv` | 690 | the real rollout, column `err_weighted` — the real world sequence certified |
 | `data/Simulators/{0,1,2}/vel_error_paired_sim.csv` | 690 each | three MuJoCo variants over the same commands, column `err_weighted` |
 | `data/Simulators/2/vel_error_all_err.csv` | 7228 | augmented sim rollout, used as SureSim's unlabeled pool |
 
@@ -71,22 +69,14 @@ Configuration specific to this study:
   in physical parameters such as joint damping and are configured to be
   separated, which is the trust gap Lemma 2 needs.
 - The synthetic banks are also run, except `Sim_7_biased`.
+- Vincent et al. at gaps 0.05 / 0.10 / 0.20 / 0.30, against `BetaSkewed(2, 11)`
+  (mean 0.154, matching the normalized data mean).
 - **SureSim** (`method/suresim.py`) — prediction-powered intervals via
   `ppi_uniform`, with the real rollout as `Y_gold`, the paired sim rollout from
   `Simulators/2` as `Y_gold_sim`, and the augmented rollout as the unlabeled
-  pool. `alpha = 0.05`, `c = 0.05`.
-- Vincent et al. at gaps 0.05 / 0.10 / 0.20 / 0.30, against `BetaSkewed(2, 11)`
-  (mean 0.154, matching the normalized data mean).
+  pool. `alpha = 0.05`, `c = 0.95`.
 
 ## Notes
-
-- **`method/suresim.py` is loaded by path**, not imported. `synthetic/method` is
-  a real package and this folder holds a same-named `method/` directory, so a
-  plain `from method.suresim import ...` would bind the local directory first and
-  break every other `from method import ...`.
-- **SureSim is re-randomized per call.** `ppi_uniform` shuffles its stacked
-  sample through the global numpy RNG, so `demo.py` seeds each step to keep runs
-  reproducible and each step independent of the sweep length.
-- **SureSim intervals are clipped to `[0, 1]`.** PPI's rectified sample lives on
-  `[-(1 + N/n), 2 + N/n]`, about 1400 wide at `n = 1`, so without clipping the
-  early steps dominate the axis.
+- SureSim designs two algorithm to get the certificate: **SureSim** in Algorithm 2 and **SureSim(2-stage)** in Algorithm 3. In our work, we compare our method and other baseline with **SureSim**, which demonstrates better performance in the paper(https://arxiv.org/pdf/2510.04354).
+- All the functions defined in `method/suresim.py` are extracted from src/suresim/intervals/ppi.py in https://github.com/irom-princeton/rapid-policy-evaluation. The change we made is  **alpha=0.05, c=0.95** since we want to fairly compare all the methods under the same confidence level.
+- The way we compute the certificate of SureSim: As the number of observations in real world increases, we increase the number of paired real and sim observations(Y_gold, Y_gold_sim), while the number of augmented sim samples is fixed across t.

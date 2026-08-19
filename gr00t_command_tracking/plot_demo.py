@@ -53,13 +53,11 @@ VINCENT_COLORS = {
     0.30: "#f768a1",
 }
 
-# Kept clear of the blue (proposed), orange (e-value), green (concentration),
-# grey (p-value) and magenta (Vincent) families already in use.
+
 SURESIM_COLOR = "#b2182b"
 
 
 MEASURE_LABELS = {
-    # err2 mixes m/s and rad/s terms, so the width carries no single unit.
     "err2": ("Weighted command tracking error", "certificate width"),
 }
 
@@ -89,10 +87,10 @@ def bank_sort_key(name):
     return (name.endswith("_biased"), int(name.split("_")[1]))
 
 
-# Vertical gap (figure fraction) left between the legend and the x-axis label.
+
 LEGEND_GAP = 0.00
 
-# Curves that stay in certificate_widths.csv but are left off the width figure.
+
 EXCLUDED_CURVES = {
     ("e_value_constant_0.25", "none"),
     ("vincent", "gap_0.1"),
@@ -242,13 +240,10 @@ def plot_width_curves():
 
 
 def plot_normalized_sequences():
-    # The metadata CSV also records the mujoco bank rollouts, which are only
-    # summarized to moments and have no entry in SEQUENCES to resolve a path
-    # from. This panel is about the certified and paired sequences, so skip them.
     metadata = [
         meta
         for meta in read_csv(DATA_DIR / "normalization_metadata.csv")
-        if meta["source"] in SEQUENCES
+        if meta["source"] == "real"
     ]
     fig, axes = plt.subplots(1, len(metadata), figsize=(5.0 * len(metadata), 3.7), sharey=True)
     if len(metadata) == 1:
@@ -261,8 +256,6 @@ def plot_normalized_sequences():
         raw = np.asarray(np.genfromtxt(path, delimiter=",", names=True)[column], dtype=float)
         normalized = np.clip((raw - lower) / (upper - lower), 0.0, 1.0)
         x = np.arange(1, normalized.size + 1)
-        # A ~900-sample rollout turns the ASTM/NIST marker style into a solid
-        # blob, so thin the line and drop the markers once the run is long.
         if normalized.size > 200:
             ax.plot(x, normalized, color="#222222", linewidth=0.6, alpha=0.85)
         else:

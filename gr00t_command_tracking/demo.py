@@ -11,12 +11,12 @@ ROOT = Path(__file__).resolve().parents[1]
 SYNTHETIC_DIR = ROOT / "synthetic"
 sys.path.insert(0, str(SYNTHETIC_DIR))
 
-from method import concentration  # noqa: E402
-from method import e_value  # noqa: E402
-from method import p_value  # noqa: E402
-from method import sim2real  # noqa: E402
-from method import vincent  # noqa: E402
-from method.distributions import BetaSkewed  # noqa: E402
+from method import concentration    
+from method import e_value    
+from method import p_value    
+from method import sim2real    
+from method import vincent    
+from method.distributions import BetaSkewed    
 
 
 def load_module_from_path(name, path):
@@ -25,11 +25,6 @@ def load_module_from_path(name, path):
     spec.loader.exec_module(module)
     return module
 
-
-# Loaded by path on purpose. `synthetic/method` is a real package and this
-# directory holds a same-named `method/` folder, so a plain
-# `from method.suresim import ...` binds the local namespace directory first
-# and every `from method import ...` above then fails to resolve.
 suresim = load_module_from_path("gr00t_suresim", Path(__file__).resolve().parent / "method" / "suresim.py")
 
 
@@ -38,12 +33,9 @@ SIM_DIR = DATA_DIR / "Simulators" / "2"
 INPUT_CSV = DATA_DIR / "vel_error_real.csv"
 SIM_pair_CSV = SIM_DIR / "vel_error_paired_sim.csv"
 SIM_aug_CSV = SIM_DIR / "vel_error_all_err.csv"
-# (csv, column, measure) per source. The paired sim rollout carries the same
-# weighted error under a different column name, so it shares the err2
-# normalization window and stays directly comparable to the real sequence.
-# Only the real sequence is certified; sim is normalized for reporting/plots.
+
 SEQUENCES = {
-    "real": (INPUT_CSV, "err2", "err2"),
+    "real": (INPUT_CSV, "err_weighted", "err2"),
     "sim_pair": (SIM_pair_CSV, "err_weighted", "err2"),
     "sim_aug": (SIM_aug_CSV, "err_weighted", "err2"),
 }
@@ -53,41 +45,23 @@ MUJOCO_BANK = "Sim_3_mujoco"
 MUJOCO_ETA = 5.0
 CONFIDENCE = 0.95
 NORMALIZATION_BOUNDS = {
-    # err2 is the weighted sum of per-axis error magnitudes, so it is
-    # non-negative and its window starts at 0. The upper end sits just above the
-    # observed max (1.072) so the right tail stays unclipped.
     "err2": (0.0, 1.1),
 }
 VINCENT_GAPS = (0.05, 0.10, 0.20, 0.30)
-# Banks from the shared synthetic bank set that this demo does not report. The
-# biased bank is a deliberately misspecified stress case for the synthetic
-# study; it is not part of the sim2real story for this dataset.
+
 SKIPPED_BANKS = ("Sim_7_biased",)
-# Candidate-mean grid used to bracket the certificate endpoints. The shared
-# default in method/e_value.py has 0.02 spacing, which is coarser than the
-# certificates this dataset reaches: when the accepted region falls between two
-# nodes the search returns nothing and the width collapses to the full range.
-# err2 concentrates around 0.153 normalized and its sim2real certificates get
-# down to ~0.005 wide, so even 0.01 spacing loses some of the banks; 0.002
-# keeps a node inside the region for every bank that has a non-empty one.
+
 GRID = np.round(np.arange(0.0001, 1.0, 0.002), 3)
 HORIZONS = (5, 10, 20, 30, 100, 300, 600)
 VINCENT_SIMULATORS = {
-    # Right-skewed like the data, with mean 2/13 = 0.154 matching the
-    # normalized mean of err2 so the simulator is roughly well specified.
+   
     "err2": BetaSkewed(2.0, 11.0),
 }
-# SureSim's prediction-powered interval. Y_gold is the real rollout, Y_gold_sim
-# is the paired sim rollout (same commands, so the two line up index by index),
-# and Y_sim is the augmented sim rollout used as the unlabeled pool.
+
 SURESIM_LABELED = "sim_pair"
 SURESIM_UNLABELED = "sim_aug"
 SURESIM_ALPHA = 1.0 - CONFIDENCE
-SURESIM_C = 0.05
-# ppi_uniform shuffles its stacked sample through the global numpy RNG, so the
-# certificate is re-randomized on every call. Seeding per step keeps the run
-# reproducible and keeps each step's interval independent of how many steps the
-# sweep happens to cover.
+SURESIM_C = 0.95
 SURESIM_SEED = 0
 
 
@@ -194,12 +168,6 @@ def certificate_rows(measure, samples, method, bank, certificate, scale):
 
 def suresim_certificate(y_gold, y_gold_sim, y_sim):
     """Prediction-powered certificate path over a growing real rollout.
-
-    Row n - 1 is the interval after n real samples, matching the convention the
-    other methods use here. The labeled pair grows together (y_gold[:n] against
-    y_gold_sim[:n]) because the rectifier y_gold - y_gold_sim is only defined on
-    matched commands, while the unlabeled pool y_sim is used in full at every
-    step.
     """
     certificate = np.empty((y_gold.size, 2), dtype=float)
     for n in range(1, y_gold.size + 1):
@@ -212,11 +180,6 @@ def suresim_certificate(y_gold, y_gold_sim, y_sim):
             c=SURESIM_C,
         )
         certificate[n - 1] = (lower, upper)
-    # The estimand is the mean of a [0, 1]-normalized error, and every other
-    # method here is already confined to that support by its candidate grid.
-    # PPI is not: its rectified sample lives on [-(1 + N/n), 2 + N/n], which at
-    # n = 1 is ~1400 wide, so intersecting with [0, 1] puts it on equal footing
-    # instead of letting the early steps dominate the axis.
     return np.clip(certificate, 0.0, 1.0)
 
 
