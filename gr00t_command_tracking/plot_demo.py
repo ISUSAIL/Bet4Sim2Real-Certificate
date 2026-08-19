@@ -234,7 +234,7 @@ def plot_width_curves():
 
     handles, labels = zip(*[legend_entries[key] for key in order if key in legend_entries])
     ncol = 3 if len(measures) == 1 else 5
-    leg = fig.legend(handles, labels, loc="lower center", ncol=ncol, frameon=False, bbox_to_anchor=(0.5, -0.08))
+    leg = fig.legend(handles, labels, loc="lower center", ncol=ncol, frameon=False, bbox_to_anchor=(0.5, -0.1))
     fig.subplots_adjust(left=0.11, right=0.99, bottom=0.42, top=0.93, wspace=0.27)
     save = DATA_DIR / "width_curves.png"
     fig.savefig(save, dpi=180, bbox_inches="tight")
@@ -250,7 +250,7 @@ def plot_normalized_sequences():
         for meta in read_csv(DATA_DIR / "normalization_metadata.csv")
         if meta["source"] in SEQUENCES
     ]
-    fig, axes = plt.subplots(1, len(metadata), figsize=(6.2 * len(metadata), 3.7), sharey=True)
+    fig, axes = plt.subplots(1, len(metadata), figsize=(5.0 * len(metadata), 3.7), sharey=True)
     if len(metadata) == 1:
         axes = [axes]
     for ax, meta in zip(axes, metadata):
