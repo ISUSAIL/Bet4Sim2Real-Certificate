@@ -1,88 +1,86 @@
-# The certificate for GR00T Command Tracking
+# GR00T Command Tracking — Unitree G1
 
-Measurements: `err_lin` — the norm of the linear velocity tracking error
-(`err_vx`, `err_vy`) — and `err_yaw`, the yaw-rate tracking error. One sample
-per control step of a rollout.
+This one is unfinished, we need details on suresim implementation
 
-## Certificate comparison
+This folder certifies the command-following accuracy of a Unitree G1 humanoid
+running the GR00T locomotion controller under joystick commands (category **C2**
+in the paper). Unlike the ASTM and NIST replays, a matched simulator exists here:
+the same commands are reproduced in MuJoCo. See the paper for the setup —
+**Fig. 3b**.
 
-Run the same certificate methods and hyperparameters used by the ASTM and NIST
-demos:
+## Reproducibility
+
+### Measure
+
+`err2` — the weighted sum of per-axis velocity tracking error magnitudes, one
+sample per control step. Non-negative, normalized to `[0, 1.1]`. Reported widths 
+are converted back to the original units.
+
+### Run
 
 ```bash
-cd gr00t_command_tracking
 python demo.py
 python plot_demo.py
 ```
 
-Both measures are normalized only while computing certificates. Reported and
-plotted certificate widths are converted back to their original units (m/s for
-`err_lin`, rad/s for `err_yaw`). Generated CSV results and plots are saved
-under `data/`.
+### Outputs
 
-## Dataset
+Everything is written to `data/`:
 
-`data/2_err.csv` — per-step command-tracking error:
+| file | contents | paper figure |
+| --- | --- | --- |
+| `normalization_metadata.csv` | bounds plus raw and normalized statistics, one row per sequence | — |
+| `certificate_widths.csv` | per-`n` bounds and widths for every method and bank | — |
+| `summary.csv` | final and mean widths, plus snapshots at n = 5, 10, 20, 30, 100, 300, 600 | — |
+| `width_curves.png` | certificate width vs. samples | **Fig. 5** |
+| `normalized_sequences.png` | the normalized measurement sequences | — |
 
-| column | meaning |
-| --- | --- |
-| `t` | time (s) |
-| `err_vx`, `err_vy` | linear velocity tracking error components (m/s) |
-| `err_lin` | linear velocity error norm (m/s) — **certified** |
-| `err_yaw` | yaw-rate tracking error (rad/s) — **certified** |
+### Data
 
-The current drop has 911 samples:
+| file | rows | role |
+| --- | --- | --- |
+| `data/vel_error_real.csv` | 690 | the real rollout, column `err2` — the only sequence certified |
+| `data/Simulators/{0,1,2}/vel_error_paired_sim.csv` | 690 each | three MuJoCo variants over the same commands, column `err_weighted` |
+| `data/Simulators/2/vel_error_all_err.csv` | 7228 | augmented sim rollout, used as SureSim's unlabeled pool |
 
-| measure | raw range | raw mean | bounds | normalized mean |
-| --- | --- | --- | --- | --- |
-| `err_lin` | `[0.0008, 0.4306]` | `0.1539` | `[0, 0.45]` | `0.342` |
-| `err_yaw` | `[-1.5664, 2.0794]` | `-0.0511` | `[-2.1, 2.1]` | `0.488` |
+All sequences share the `err2` normalization window so they stay directly
+comparable.
 
-## Outputs
+## Method
 
-| file | contents |
-| --- | --- |
-| `data/normalization_metadata.csv` | normalization bounds and raw/normalized statistics |
-| `data/certificate_widths.csv` | per-`n` bounds and widths for every method (17 series × 911 samples × 2 measures) |
-| `data/summary.csv` | final/mean widths plus snapshots at n = 5, 10, 20, 30, 100, 300, 900 |
-| `data/width_curves.png` | certificate width vs. samples (log y) |
-| `data/normalized_sequences.png` | the normalized measurement sequences |
+See the paper for the methods themselves; the modules are the same ones the
+synthetic folder documents. `demo.py` adds `../synthetic` to `sys.path` and
+imports them, along with the simulator banks, from there.
 
-## Methods compared
+Configuration specific to this study:
 
-- **Proposed (sim2real)** over 5 simulator banks imported from
-  `synthetic/demo.py` — `Sim_35`, `Sim_252`, `Sim_756`, `Sim_10080`,
-  `Sim_7_biased` — each with its tuned `eta`
-- **e-value** — WSR, and constant `lambda_t` of 0.25 and 0.5
-- **Concentration** — Hoeffding, empirical Bernstein
-- **p-value** — t-test, z-test, sequential t-test
-- **Vincent et al.** at sim-to-real gaps 0.05 / 0.10 / 0.20 / 0.30, against
-  `BetaSkewed(2, 4)` for `err_lin` (mean 0.333) and `BetaSkewed(2, 2)` for
-  `err_yaw` (mean 0.5), each matching its normalized data mean
-
-All at 95% confidence.
+- `CONFIDENCE = 0.95`, `HORIZONS = (5, 10, 20, 30, 100, 300, 600)`.
+- `GRID = arange(0.0001, 1.0, 0.002)` with `refine=True, tol=1e-5`. The shared
+  `0.02` default is coarser than the certificates this dataset reaches (~0.005
+  wide), which would leave the accepted region between two nodes and collapse
+  the width to full range.
+- **`Sim_3_mujoco`** — the three MuJoCo variants, each reduced to the `(mean,
+  variance)` of its normalized sequence and passed to
+  `sim2real.bounds_from_samples_mujoco()`, with `eta = 5.0`. The variants differ
+  in physical parameters such as joint damping and are configured to be
+  separated, which is the trust gap Lemma 2 needs.
+- The synthetic banks are also run, except `Sim_7_biased`.
+- **SureSim** (`method/suresim.py`) — prediction-powered intervals via
+  `ppi_uniform`, with the real rollout as `Y_gold`, the paired sim rollout from
+  `Simulators/2` as `Y_gold_sim`, and the augmented rollout as the unlabeled
+  pool. `alpha = 0.05`, `c = 0.05`.
+- Vincent et al. at gaps 0.05 / 0.10 / 0.20 / 0.30, against `BetaSkewed(2, 11)`
+  (mean 0.154, matching the normalized data mean).
 
 ## Notes
 
-- **Normalization** — `err_lin` is a magnitude, so its window starts at 0.
-  `err_yaw` is signed (531 of 911 samples are negative), so it gets a symmetric
-  window; the certified quantity is therefore the signed mean yaw-rate bias,
-  not an error magnitude, and widths in rad/s carry the full `4.2` scale.
-  Neither window clips a single sample. Widening a window shrinks every
-  normalized width proportionally and makes the comparison look artificially
-  tight.
-
-- **Full-width spikes at large n** — this rollout is ~900 samples, an order of
-  magnitude longer than the ASTM/NIST drops. Past n ≈ 500 six of the 34 series
-  (`sim2real` on most banks, and `e_value_wsr` on `err_yaw`) spike to full
-  width and stay there through the last sample. The grid-based methods reject
-  every candidate mean once the confidence sequence is narrower than the `0.02`
-  spacing of `method.e_value.DEFAULT_GRID`, and both `method/e_value.py` and
-  `method/sim2real.py` report that all-rejected case as `[0, 1]` — the widest
-  possible interval, rather than the empty set it actually is. These spikes are
-  visible in `width_curves.png` and dominate the `final_width_*` columns of
-  `summary.csv`, so read those series at an earlier horizon instead.
-
-- **Small-n artifact** — the t-test and z-test curves dip to near-zero width at
-  n = 2 before recovering. Those bounds are not meaningful at that sample size;
-  the same artifact appears in the ASTM and NIST demos.
+- **`method/suresim.py` is loaded by path**, not imported. `synthetic/method` is
+  a real package and this folder holds a same-named `method/` directory, so a
+  plain `from method.suresim import ...` would bind the local directory first and
+  break every other `from method import ...`.
+- **SureSim is re-randomized per call.** `ppi_uniform` shuffles its stacked
+  sample through the global numpy RNG, so `demo.py` seeds each step to keep runs
+  reproducible and each step independent of the sweep length.
+- **SureSim intervals are clipped to `[0, 1]`.** PPI's rectified sample lives on
+  `[-(1 + N/n), 2 + N/n]`, about 1400 wide at `n = 1`, so without clipping the
+  early steps dominate the axis.
