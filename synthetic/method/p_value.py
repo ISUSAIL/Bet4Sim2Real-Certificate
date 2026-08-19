@@ -49,12 +49,7 @@ def _radius(prefix, confidence, method):
 
 
 def bounds_from_samples(samples, confidence=0.95, method="student_t"):
-    """Two-sided real-sample p-value intervals for the mean.
-
-    student_t is the usual one-sample t interval with sample standard deviation.
-    normal is a z interval with worst-case standard deviation 0.5.
-    sequential_t uses a simple alpha-spending
-    schedule alpha_t = alpha / (t * (t + 1)).
+    """Two-sided real-sample p-value based intervals for the mean.
     """
     samples = np.asarray(samples, dtype=float).ravel()
     certificates = np.empty((samples.size, 2), dtype=float)

@@ -39,11 +39,6 @@ def certificate(
     sim2real_gap_lower=None,
 ):
     """Return Vincent mean certificates using simulator samples.
-
-    sim2real_gap_upper is the assumed one-sided KS gap
-    sup_x CDF_sim(x) - CDF_real(x). If sim2real_gap_lower is provided, it is
-    the reverse gap sup_x CDF_real(x) - CDF_sim(x), and the returned lower
-    bound is obtained by applying the same theorem to 1 - X.
     """
     if sim2real_gap_upper < 0.0:
         raise ValueError("sim2real_gap_upper must be nonnegative")

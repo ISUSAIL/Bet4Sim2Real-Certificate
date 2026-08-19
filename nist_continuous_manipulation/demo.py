@@ -11,12 +11,12 @@ ROOT = Path(__file__).resolve().parents[1]
 SYNTHETIC_DIR = ROOT / "synthetic"
 sys.path.insert(0, str(SYNTHETIC_DIR))
 
-from method import concentration  # noqa: E402
-from method import e_value  # noqa: E402
-from method import p_value  # noqa: E402
-from method import sim2real  # noqa: E402
-from method import vincent  # noqa: E402
-from method.distributions import BetaSkewed  # noqa: E402
+from method import concentration   
+from method import e_value   
+from method import p_value   
+from method import sim2real   
+from method import vincent   
+from method.distributions import BetaSkewed   
 
 
 DATA_DIR = Path(__file__).resolve().parent / "data"

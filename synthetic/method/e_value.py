@@ -7,7 +7,7 @@ DEFAULT_CONSTANT_LAMBDAS = (0.25, 0.5, 0.75, 1.0)
 
 
 def truncate_stake(stake, candidate_mean, delta=0.05):
-    """Clip stakes so 1 + lambda * (x - m) stays positive for x in [0, 1]."""
+    """Clip stakes so that the resulting wealth stays positive for x in [0, 1]."""
     candidate_mean = np.asarray(candidate_mean, dtype=float)
     lower = -(1.0 - delta) / np.maximum(1.0 - candidate_mean, 1e-12)
     upper = (1.0 - delta) / np.maximum(candidate_mean, 1e-12)
@@ -110,7 +110,7 @@ def refined_confidence_sequence_from_log_wealth(
     tol=1e-3,
     max_iter=10,
 ):
-    """Refine grid-bracketed confidence bounds by batched bisection."""
+    """Refine grid-bracketed confidence bounds through bisection."""
     grid = np.asarray(grid, dtype=float).ravel()
     log_wealth = np.asarray(log_wealth, dtype=float)
     threshold = np.log(1.0 / alpha)
@@ -196,7 +196,7 @@ def bounds_from_samples(
     refine=True,
     tol=1e-3,
 ):
-    """Raw WSR-style confidence sequence using only data-driven moments."""
+    """WSR-style confidence sequence using data-driven moments."""
     if not 0.0 < confidence < 1.0:
         raise ValueError("confidence must be in (0, 1)")
     alpha = 1.0 - confidence

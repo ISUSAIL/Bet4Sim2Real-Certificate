@@ -131,9 +131,7 @@ with the synthetic banks from **C1**.
 - **X-axis sign convention** — the `rmma_fiducials_gt.csv` export uses the
   opposite X-axis sign to the OTS take's "Custom Axis Convention" frame the EOAT
   is read from. `load_marker_gt` negates the ground-truth X to bring both into
-  the same frame; without this the error is dominated by a spurious X offset
-  (inflated to hundreds of mm, worst on Side 1 where `|X|` is large). After
-  correction all errors fall in a realistic ~5–30 mm range.
+  the same frame.
 - **Run-order alignment** — takes are assigned to runs purely by capture-start
   order. The batch script cross-checks each run's `Side` against the run-order
   workbook as a sanity check; all 6 replicates currently agree with no
