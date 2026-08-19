@@ -8,6 +8,12 @@ in the paper). Unlike the ASTM and NIST replays, a matched simulator exists here
 the same commands are reproduced in MuJoCo. See the paper for the setup —
 **Fig. 3b**.
 
+| simulation | real |
+| --- | --- |
+| ![Simulated command-tracking rollout](data/rollout_sim.gif) | ![Real command-tracking rollout](data/rollout_real.gif) |
+
+Both rollouts are the same command sequence, shown at 8x speed.
+
 ## Reproducibility
 
 ### Measure
