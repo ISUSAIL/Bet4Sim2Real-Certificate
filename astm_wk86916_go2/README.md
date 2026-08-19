@@ -10,7 +10,7 @@ Rejection Testing of Legged Robots*, under development by ASTM Subcommittee
 https://www.astm.org/membership-participation/technical-committees/workitems/workitem-wk86916
 
 A Unitree Go2, running its manufacturer-provided control modules, is struck by
-a swinging-pendulum impactor. See the paper for the setup — **Fig. 3d**.
+a swinging-pendulum impactor (**Fig. 3d**).
 
 ![Push-over test: pendulum impactor striking the Unitree Go2](data/pushover_test.gif)
 
