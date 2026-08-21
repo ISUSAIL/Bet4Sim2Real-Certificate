@@ -1,5 +1,10 @@
+#Comparison
+compare_sim2real.py
+comparison
+CLAUDE.md
 #Raw data
 nist_continuous_manipulation/data/raw
+synthetic/data/width_curves_per_sample.csv
 # Python
 __pycache__/
 *.py[cod]

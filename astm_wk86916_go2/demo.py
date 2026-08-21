@@ -217,10 +217,6 @@ def main():
     write_csv(DATA_DIR / "normalization_metadata.csv", metadata)
     write_csv(DATA_DIR / "certificate_widths.csv", rows)
     write_csv(DATA_DIR / "summary.csv", summarize(rows))
-    print(f"saved {DATA_DIR / 'normalization_metadata.csv'}")
-    print(f"saved {DATA_DIR / 'certificate_widths.csv'}")
-    print(f"saved {DATA_DIR / 'summary.csv'}")
-
 
 if __name__ == "__main__":
     main()

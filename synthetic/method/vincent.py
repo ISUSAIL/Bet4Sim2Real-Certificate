@@ -1,12 +1,5 @@
 import numpy as np
 
-
-# Note: Vincent et al.'s expected-value certificate is naturally one-sided.
-# The upper side needs a provided one-sided KS gap from simulation to reality.
-# A lower side can be built the same way on reflected samples 1 - X, but it
-# also needs its own provided one-sided KS gap for that reflected problem.
-
-
 def _failure_probability(confidence):
     if not 0.0 < confidence < 1.0:
         raise ValueError("confidence must be in (0, 1)")
@@ -80,8 +73,3 @@ if __name__ == "__main__":
         sim2real_gap_lower=0.05,
     )
 
-    print("Vincent mean certificate example")
-    print(f"real mean: {real.true_mean():.4f}")
-    print(f"sim mean: {sim.true_mean():.4f}")
-    print(f"certificates shape: {certs.shape}")
-    print(f"final 95% CI: [{certs[-1, 0]:.4f}, {certs[-1, 1]:.4f}]")

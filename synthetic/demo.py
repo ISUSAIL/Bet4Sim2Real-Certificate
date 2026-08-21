@@ -458,7 +458,6 @@ def collect_eta_ablation(banks):
         for dist_name, dist in dists[:ETA_ABLATION_MAX_DISTS]
         for seed in ETA_ABLATION_SEEDS
     ]
-    print(f"running eta ablation: {len(tasks)} tasks on {N_WORKERS} workers")
     with ProcessPoolExecutor(max_workers=N_WORKERS, initializer=init_worker, initargs=(banks,)) as executor:
         return flatten_results(executor.map(run_eta_task, tasks, chunksize=4))
 
@@ -470,7 +469,6 @@ def collect_main_results(banks):
         for dist_name, dist in dists
         for seed in range(N_SEEDS)
     ]
-    print(f"running main comparison: {len(tasks)} tasks on {N_WORKERS} workers")
     with ProcessPoolExecutor(max_workers=N_WORKERS, initializer=init_worker, initargs=(banks,)) as executor:
         return flatten_results(executor.map(run_main_task, tasks, chunksize=4))
 
@@ -490,11 +488,6 @@ def main():
     write_csv(os.path.join(DATA_DIR, "width_curves.csv"), curves)
     write_csv(os.path.join(DATA_DIR, "coverage_curves.csv"), coverage_curve_summary(rows))
     write_csv(os.path.join(DATA_DIR, "eta_ablation.csv"), eta_summary)
-    print(f"saved {os.path.join(DATA_DIR, 'summary.csv')}")
-    print(f"saved {os.path.join(DATA_DIR, 'per_distribution.csv')}")
-    print(f"saved {os.path.join(DATA_DIR, 'width_curves.csv')}")
-    print(f"saved {os.path.join(DATA_DIR, 'coverage_curves.csv')}")
-    print(f"saved {os.path.join(DATA_DIR, 'eta_ablation.csv')}")
 
 
 def aggregate(rows, keys):

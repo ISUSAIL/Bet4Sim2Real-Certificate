@@ -262,7 +262,4 @@ if __name__ == "__main__":
     wsr = certificate(distribution, seed=0, n_samples=100, method="wsr")
     constant = certificate(distribution, seed=0, n_samples=100, method="constant")
 
-    print("E-process certificate example")
-    print(f"true mean: {distribution.true_mean():.4f}")
-    print(f"WSR final 95% CS: [{wsr[-1, 0]:.4f}, {wsr[-1, 1]:.4f}]")
-    print(f"Constant final 95% CS: [{constant[-1, 0]:.4f}, {constant[-1, 1]:.4f}]")
+

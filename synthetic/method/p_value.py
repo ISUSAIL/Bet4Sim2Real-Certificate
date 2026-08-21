@@ -85,8 +85,3 @@ if __name__ == "__main__":
     certificates = certificate(distribution, seed=0, n_samples=100, method="student_t")
     sequential = certificate(distribution, seed=0, n_samples=100, method="sequential_t")
 
-    print("P-value t-test certificate example")
-    print(f"true mean: {distribution.true_mean():.4f}")
-    print(f"certificates shape: {certificates.shape}")
-    print(f"final 95% CI: [{certificates[-1, 0]:.4f}, {certificates[-1, 1]:.4f}]")
-    print(f"sequential t final 95% CI: [{sequential[-1, 0]:.4f}, {sequential[-1, 1]:.4f}]")

@@ -67,7 +67,3 @@ if __name__ == "__main__":
     hoeffding = certificate(distribution, seed=0, n_samples=100, method="hoeffding")
     bernstein = certificate(distribution, seed=0, n_samples=100, method="empirical_bernstein")
 
-    print("Concentration certificate example")
-    print(f"true mean: {distribution.true_mean():.4f}")
-    print(f"Hoeffding final 95% CI: [{hoeffding[-1, 0]:.4f}, {hoeffding[-1, 1]:.4f}]")
-    print(f"Empirical Bernstein final 95% CI: [{bernstein[-1, 0]:.4f}, {bernstein[-1, 1]:.4f}]")

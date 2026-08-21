@@ -208,7 +208,6 @@ def plot_width_curves():
     fig.subplots_adjust(left=0.075, right=0.99, bottom=0.52, top=0.88, wspace=0.30)
     save = DATA_DIR / "width_curves.png"
     fig.savefig(save, dpi=180, bbox_inches="tight")
-    print(f"saved {save}")
 
 
 def plot_normalized_sequences():
@@ -232,7 +231,6 @@ def plot_normalized_sequences():
     fig.subplots_adjust(left=0.08, right=0.99, bottom=0.18, top=0.86, wspace=0.10)
     save = DATA_DIR / "normalized_sequences.png"
     fig.savefig(save, dpi=180)
-    print(f"saved {save}")
 
 
 def main():

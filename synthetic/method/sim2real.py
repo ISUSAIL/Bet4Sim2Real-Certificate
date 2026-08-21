@@ -326,7 +326,3 @@ if __name__ == "__main__":
         simulators=simulator_bank,
     )
 
-    print("Sim-to-real certificate example")
-    print(f"true mean: {real_distribution.true_mean():.4f}")
-    print(f"certificates shape: {certificates.shape}")
-    print(f"final 95% CS: [{certificates[-1, 0]:.4f}, {certificates[-1, 1]:.4f}]")

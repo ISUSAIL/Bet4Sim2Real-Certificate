@@ -289,7 +289,6 @@ def plot_width_curves(path, save):
         legend_ax.add_artist(legend)
     fig.subplots_adjust(left=0.075, right=0.99, bottom=0.10, top=0.92, hspace=0.50, wspace=0.13)
     fig.savefig(save, dpi=180)
-    print(f"saved {save}")
 
 
 def plot_coverage_curves(path, save):
@@ -330,7 +329,6 @@ def plot_coverage_curves(path, save):
     cbar = fig.colorbar(im, cax=cax)
     cbar.set_label("coverage; centered at 95%")
     fig.savefig(save, dpi=180)
-    print(f"saved {save}")
 
 
 def plot_eta_ablation(path, save):
@@ -395,7 +393,6 @@ def plot_eta_ablation(path, save):
     cbar.set_label("mean certificate width", fontsize=20)
     cbar.ax.tick_params(labelsize=16)
     fig.savefig(save, dpi=180)
-    print(f"saved {save}")
 
 
 def distribution_points(named_distributions):
@@ -512,7 +509,6 @@ def plot_distribution_geometry_by_bank(save):
     )
     fig.subplots_adjust(left=0.085, right=0.995, bottom=0.235, top=0.88, hspace=0.16, wspace=0.06)
     fig.savefig(save, dpi=180)
-    print(f"saved {save}")
 
 
 def main():

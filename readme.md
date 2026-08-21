@@ -23,3 +23,7 @@ the three robot studies import them from there.
 
 Proofs of the propositions, lemmas, and theorems, together with the remaining
 appendices, are in `supplement.pdf`. 
+
+## Disclaimer
+
+The development of this codebase involves, in part, a mixture of generative AI models. The authors take full responsibility for the code.
