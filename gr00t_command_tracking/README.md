@@ -2,8 +2,7 @@
 
 This folder certifies the command-following accuracy of a Unitree G1 humanoid
 running the GR00T locomotion controller under joystick commands (category **C2**
-in the paper). Unlike the ASTM and NIST replays, a matched simulator exists here:
-the same commands are reproduced in MuJoCo. See the paper for the setup —
+in the paper). Unlike the ASTM and NIST replays, a matched simulator exists here: the same commands are reproduced in MuJoCo. See the paper for the setup —
 **Fig. 3b**.
 
 | simulation | real |

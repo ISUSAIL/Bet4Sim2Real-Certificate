@@ -1,11 +1,7 @@
 # NIST Continuous Manipulation — Peg-in-Hole Task
 
-This folder replays a standardized-procedure mobile-manipulator test and applies
-the certificate methods to the recorded outcomes (category **C3** in the paper).
-A wheeled mobile manipulator performs a peg-in-hole task (**Fig. 3c**).
-
-The outcomes come from the open NIST Continuous Mobile Manipulator Performance
-Measurement Dataset:
+The dataset comes from the open NIST Continuous Mobile Manipulator Performance
+Measurement Dataset (**Fig. 3c** in the paper):
 
 Aboul-Enein, Medeiros, Shah, Li-Baboud, Bostelman, Virts. *Continuous Mobile
 Manipulator Performance Measurement Data.* National Institute of Standards and
@@ -59,12 +55,12 @@ Everything is written to `data/`:
 There are two ways to obtain the data.
 
 **1. Use the preprocessed measurements (recommended).** `data/measurement.csv`
-is the already-processed result; no raw data or scripts needed.
+is the post-processed result; no raw data or scripts needed.
 
 **2. Rebuild from the raw NIST archive.** Download *Continuous Mobile
 Manipulator Performance Experiment 06-07-2022* from
 https://data.nist.gov/od/id/mds2-3187 and arrange the files as below. Only these
-four sources are used — the rest of the archive (Rosbag, Videos, Matlab Data,
+four sources are used. The rest of the archive (Rosbag, Videos, Matlab Data,
 Time Synchronization) is not needed.
 
 | NIST source (under `Nist/mds2-3187/Continuous Mobile Manipulator Experiment 06-07-2022/`) | Put it at |

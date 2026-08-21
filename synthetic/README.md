@@ -3,8 +3,7 @@
 This folder holds the synthetic experiments for comparing certificate methods
 (category **C1** in the paper), along with other "toy" demos used in Section I.
 
-The synthetic distributions are adapted and extended from previous publications [1] and [2]
-and their corresponding code bases.
+The synthetic distributions are adapted and extended from previous publications [1] and [2] and their corresponding code bases.
 
 [1] Weng, Capito, Castillo, Khor. *Rethink repeatable measures of robot
 performance with statistical query.* IEEE Transactions on Robotics, 42:561–578,
