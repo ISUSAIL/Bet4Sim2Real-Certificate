@@ -22,7 +22,7 @@ the three robot studies import them from there.
 ## Supplement
 
 Proofs of the propositions, lemmas, and theorems, together with the remaining
-appendices, are in `supplement.pdf`. 
+appendices, are in [`supplement.pdf`](supplement.pdf). 
 
 ## Disclaimer
 
