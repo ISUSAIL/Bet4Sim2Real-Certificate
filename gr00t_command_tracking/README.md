@@ -76,6 +76,6 @@ Configuration specific to this study:
   pool. `alpha = 0.05`, `c = 0.95`.
 
 ## Notes
-- SureSim(https://arxiv.org/pdf/2510.04354) designs two algorithm to get the certificate: **SureSim** in Algorithm 2 and **SureSim(2-stage)** in Algorithm 3. In our work, we compare our method and other baseline with **SureSim**, which demonstrates better performance in their paper.
+- SureSim(https://arxiv.org/pdf/2510.04354) designs two algorithm to get the certificate: **SureSim** in Algorithm 2 and **SureSim(2-stage)** in Algorithm 3. In our work, we compare our method and other baseline with **SureSim**, which has a better performance compared with **SureSim(2-stage)**.
 - All the functions defined in `method/suresim.py` are extracted from src/suresim/intervals/ppi.py in https://github.com/irom-princeton/rapid-policy-evaluation. The change we made is  **alpha=0.05, c=0.95** since we want to fairly compare all the methods under the same confidence level.
 - The way we compute the certificate of SureSim: As the number of observations in real world increases, we increase the number of paired real and sim observations(Y_gold, Y_gold_sim), while the number of augmented sim samples is fixed across t.
