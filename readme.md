@@ -26,4 +26,4 @@ appendices, are in [`supplement.pdf`](supplement.pdf).
 
 ## Disclaimer
 
-The development of this codebase involves, in part, a mixture of generative AI models. The authors take full responsibility for the code.
+The development of this codebase involves, in part, a mixture of generative AI models for debugging, figure plotting, and comment editting. The authors take full responsibility for the code.
