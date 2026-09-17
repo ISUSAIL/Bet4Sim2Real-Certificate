@@ -1,7 +1,7 @@
-# Betting for Sim-to-Real Performance Certificate
+# Betting for Sim-to-Real Performance Certificates
 
 This repository provides the reproducible implementation of the paper
-*Betting for Sim-to-Real Performance Certificate*. Every figure in the paper can
+*Betting for Sim-to-Real Performance Certificates*. Every figure in the paper can
 be regenerated from the code and data here.
 
 ## Reproducibility
